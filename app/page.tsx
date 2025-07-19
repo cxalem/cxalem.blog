@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getAllPosts } from "@/lib/mdx";
 import { PostCard } from "@/app/components/post-card";
 
@@ -22,14 +21,6 @@ export default function Home() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Learn. Create. Share.</h2>
-            {posts.length > 0 && (
-              <Link
-                href="/posts"
-                className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium text-sm"
-              >
-                View all posts →
-              </Link>
-            )}
           </div>
           <div className="mt-4">
             {posts.length === 0 ? (

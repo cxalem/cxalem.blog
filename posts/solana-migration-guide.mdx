@@ -28,13 +28,13 @@ The migration involves two main transitions:
 ### Remove Old Dependencies
 
 ```bash
-npm uninstall @solana/wallet-adapter-react @solana/wallet-adapter-react-ui @solana/wallet-adapter-wallets @solana/wallet-adapter-base @solana/web3.js
+npm uninstall @solana/wallet-adapter-react @solana/wallet-adapter-react-ui @solana/wallet-adapter-wallets @solana/wallet-adapter-base
 ```
 
 ### Install New Dependencies
 
 ```bash
-npm install gill @wallet-ui/react
+npm install gill @wallet-ui/react @solana/web3.js
 ```
 
 ## Connection Provider → Solana Client
