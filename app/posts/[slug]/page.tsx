@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getPostBySlug, getAllPostSlugs } from "@/lib/mdx";
 import Link from "next/link";
 import { MDXContent } from "@/app/components/mdx-content";
+import { Metadata } from "next";
 
 interface PostPageProps {
   params: Promise<{ slug: string }>;
@@ -12,6 +13,70 @@ export async function generateStaticParams() {
   return slugs.map((slug) => ({
     slug,
   }));
+}
+
+export async function generateMetadata({ params }: PostPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const post = getPostBySlug(slug);
+
+  if (!post) {
+    return {
+      title: 'Post Not Found',
+      description: 'The requested post could not be found.',
+    };
+  }
+
+  const { title, description, tags } = post.metadata;
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  
+  // Create OG image URL with post data
+  const ogImageUrl = new URL(`${baseUrl}/api/og`);
+  if (title) ogImageUrl.searchParams.set('title', title);
+  if (description) ogImageUrl.searchParams.set('description', description);
+  if (tags && tags.length > 0) ogImageUrl.searchParams.set('tags', tags.join(','));
+
+  return {
+    title: title ? `${title} | cxalem.dev` : `${slug} | cxalem.dev`,
+    description: description || `Read about ${title || slug} on cxalem.dev`,
+    keywords: tags?.join(', '),
+    authors: [{ name: 'Alejandro', url: 'https://cxalem.dev' }],
+    creator: 'Alejandro',
+    publisher: 'cxalem.dev',
+    openGraph: {
+      title: title || slug,
+      description: description || `Read about ${title || slug} on cxalem.dev`,
+      url: `${baseUrl}/posts/${slug}`,
+      siteName: 'cxalem.dev',
+      images: [
+        {
+          url: ogImageUrl.toString(),
+          width: 1200,
+          height: 630,
+          alt: title || slug,
+        },
+      ],
+      locale: 'en_US',
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: title || slug,
+      description: description || `Read about ${title || slug} on cxalem.dev`,
+      images: [ogImageUrl.toString()],
+      creator: '@cxalem',
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-video-preview': -1,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
+    },
+  };
 }
 
 export default async function PostPage({ params }: PostPageProps) {

@@ -1,5 +1,20 @@
 import { getAllPosts } from "@/lib/mdx";
 import { PostCard } from "@/app/components/post-card";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Blog Posts",
+  description: "Thoughts on development, tools, and technology. Read about Solana, Web3, React, TypeScript, and more.",
+  openGraph: {
+    title: "Blog Posts | cxalem.dev",
+    description: "Thoughts on development, tools, and technology. Read about Solana, Web3, React, TypeScript, and more.",
+    url: "https://cxalem.dev/posts",
+  },
+  twitter: {
+    title: "Blog Posts | cxalem.dev",
+    description: "Thoughts on development, tools, and technology. Read about Solana, Web3, React, TypeScript, and more.",
+  },
+};
 
 export default function BlogPage() {
   const posts = getAllPosts();
