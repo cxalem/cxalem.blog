@@ -36,17 +36,17 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
   if (tags && tags.length > 0) ogImageUrl.searchParams.set('tags', tags.join(','));
 
   return {
-    title: title ? `${title} | cxalem.dev` : `${slug} | cxalem.dev`,
-    description: description || `Read about ${title || slug} on cxalem.dev`,
+    title: title ? `${title} | cxalem.blog` : `${slug} | cxalem.blog`,
+    description: description || `Read about ${title || slug} on cxalem.blog`,
     keywords: tags?.join(', '),
-    authors: [{ name: 'Alejandro', url: 'https://cxalem.dev' }],
+    authors: [{ name: 'Alejandro', url: 'https://cxalem.blog' }],
     creator: 'Alejandro',
-    publisher: 'cxalem.dev',
+    publisher: 'cxalem.blog',
     openGraph: {
       title: title || slug,
-      description: description || `Read about ${title || slug} on cxalem.dev`,
+      description: description || `Read about ${title || slug} on cxalem.blog`,
       url: `${baseUrl}/posts/${slug}`,
-      siteName: 'cxalem.dev',
+      siteName: 'cxalem.blog',
       images: [
         {
           url: ogImageUrl.toString(),
@@ -61,7 +61,7 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
     twitter: {
       card: 'summary_large_image',
       title: title || slug,
-      description: description || `Read about ${title || slug} on cxalem.dev`,
+      description: description || `Read about ${title || slug} on cxalem.blog`,
       images: [ogImageUrl.toString()],
       creator: '@cxalem',
     },
