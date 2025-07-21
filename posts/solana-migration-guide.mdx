@@ -9,7 +9,16 @@ tags: ["solana", "blockchain", "migration", "web3", "wallet"]
 
 Migrate from `@solana/wallet-adapter-react` & `@solana/web3.js` v1 to `gill` & `@wallet-ui/react`
 
-> **✅ TESTED & VALIDATED**: All code examples in this guide have been tested with working scripts and validated against real Solana devnet. The patterns shown here are production-ready and tested.
+> **⚠️ IMPORTANT: Wallet-UI Status** 
+> 
+> The `@wallet-ui/react` package is currently **🚧 Work in Progress**. While the core hooks and providers work, UI components are not yet available. This guide shows both the current API and expected future patterns.
+>
+> **Current Status:**
+> - ✅ **gill** - Fully stable and production-ready
+> - 🚧 **@wallet-ui/react** - Core functionality works, UI components in development
+> - 🔄 **Alternative**: Consider using gill with traditional wallet adapters during transition
+
+> **✅ TESTED & VALIDATED**: The gill examples in this guide have been tested with working scripts and validated against real Solana devnet. The wallet-ui examples reflect the current API status.
 
 This is a comprehensive guide for migrating your Solana application from the traditional wallet adapter setup to modern alternatives. If there is an API you need which is missing or cannot find, create an issue in the respective repositories.
 
@@ -128,38 +137,45 @@ export const SolanaProvider: FC<SolanaProviderProps> = ({ children }) => {
 };
 ```
 
-#### After
+#### After (Current API - Work in Progress)
 
 ```typescript
 "use client";
 
 import React, { FC, ReactNode } from "react";
-import { SolanaProvider as WalletUISolanaProvider } from "@wallet-ui/react";
+import { 
+  WalletUi, 
+  createWalletUiConfig,
+  createSolanaDevnet,
+  createSolanaLocalnet,
+  createSolanaMainnet
+} from "@wallet-ui/react";
+import "@wallet-ui/tailwind/index.css"; // 🚨 CRITICAL: Required for component styling
 
 interface SolanaProviderProps {
   children: ReactNode;
 }
 
 export const SolanaProvider: FC<SolanaProviderProps> = ({ children }) => {
+  const config = createWalletUiConfig({
+    clusters: [
+      createSolanaDevnet(),
+      createSolanaLocalnet(), // For local development
+      createSolanaMainnet(),
+    ],
+  });
+
   return (
-    <WalletUISolanaProvider 
-      chains={[
-        {
-          id: 'devnet',
-          name: 'Devnet',
-          rpcUrls: ['https://api.devnet.solana.com']
-        }
-      ]}
-    >
+    <WalletUi config={config}>
       {children}
-    </WalletUISolanaProvider>
+    </WalletUi>
   );
 };
 ```
 
-> Wallet-UI provides a simpler, more streamlined provider setup with automatic wallet detection using the wallet standard.
+> ⚠️ **Current Status**: This shows the current working API. Note that `@wallet-ui/react` is in development - UI components like dropdowns are not yet available. The core provider and hooks work for basic wallet connectivity.
 
-### Wallet Connection Hook
+### Wallet Connection Components
 
 #### Before
 
@@ -187,41 +203,100 @@ export const ConnectButton = () => {
 };
 ```
 
-#### After
+#### After (Current API - Hooks Only)
 
 ```typescript
-import { useSolanaWallet, useSolanaWalletAddress } from "@wallet-ui/react";
+"use client";
 
-export const ConnectButton = () => {
-  const [selectedWalletAccount, setSelectedWalletAccount] = useSolanaWallet();
+import { useSolanaWallet, useSolanaWalletAddress, useSolanaChain } from "@wallet-ui/react";
+
+export const WalletInfo = () => {
+  const [wallet, setWallet] = useSolanaWallet();
   const walletAddress = useSolanaWalletAddress();
-  
-  const connected = !!selectedWalletAccount;
-
-  const handleClick = async () => {
-    if (connected) {
-      setSelectedWalletAccount(undefined);
-    } else {
-      // Wallet selection/connection logic would go here
-      // @wallet-ui/react uses the wallet standard for automatic detection
-    }
-  };
+  const { chain } = useSolanaChain();
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <button onClick={handleClick}>
-        {connected ? "Disconnect" : "Connect Wallet"}
-      </button>
-      
-      {connected && walletAddress && (
-        <p>Connected: {walletAddress}</p>
+    <div className="flex items-center gap-4">
+      <div>
+        Network: {chain?.label || 'Unknown'}
+      </div>
+      <div>
+        {walletAddress ? (
+          <span>Connected: {walletAddress.slice(0, 8)}...</span>
+        ) : (
+          <span>No wallet connected</span>
+        )}
+      </div>
+      {/* Note: You'll need to build your own connect/disconnect UI */}
+    </div>
+  );
+};
+```
+
+> ⚠️ **Current Limitation**: UI components don't exist yet. You'll need to build your own wallet connection buttons using the available hooks, or continue using traditional wallet adapters during the transition period.
+
+#### Alternative: Continue Using Wallet Adapter (Recommended for Now)
+
+Since wallet-ui doesn't have UI components yet, consider this hybrid approach:
+
+```typescript
+// Keep using wallet adapter for UI, but with gill for RPC
+import { useWallet } from "@solana/wallet-adapter-react";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { createSolanaClient } from "gill";
+
+export const HybridApproach = () => {
+  const { publicKey, connected } = useWallet();
+  
+  // Use gill for RPC operations
+  const { rpc } = createSolanaClient({ urlOrMoniker: 'devnet' });
+  
+  return (
+    <div className="flex items-center gap-4">
+      <WalletMultiButton />
+      {connected && publicKey && (
+        <span>Connected: {publicKey.toBase58().slice(0, 8)}...</span>
       )}
     </div>
   );
 };
 ```
 
-> Wallet-UI uses the wallet standard pattern with automatic wallet detection.
+> 💡 **Recommended Strategy**: Use gill for blockchain operations (it's stable) while keeping wallet adapter for UI until wallet-ui components are ready.
+
+## Next.js SSR Considerations
+
+### Dynamic Imports (Recommended)
+
+For the best Next.js compatibility, we recommend dynamically importing wallet-UI components to prevent server-side rendering issues:
+
+```typescript
+// ⚠️ POTENTIAL ISSUE: Direct imports may cause SSR hydration issues
+import { WalletUiDropdown } from "@wallet-ui/react";
+
+// ✅ RECOMMENDED: Dynamic imports with SSR disabled
+export const WalletButton = dynamic(
+  async () => (await import('@wallet-ui/react')).WalletUiDropdown,
+  { ssr: false }
+);
+```
+
+**Why dynamic imports are recommended:**
+- Wallet detection requires browser APIs (`window`, `navigator`)
+- Server-side rendering can't access these APIs
+- Dynamic imports ensure components only render on the client
+- Prevents hydration mismatches in production
+
+### Client Component Requirements
+
+Provider components must use the `"use client"` directive:
+
+```typescript
+"use client"; // Required for wallet-ui providers
+
+import { WalletUi } from "@wallet-ui/react";
+import "@wallet-ui/tailwind/index.css"; // Also required for styling
+```
 
 ## Transaction Handling
 
@@ -268,9 +343,12 @@ export const useTransfer = () => {
 #### After
 
 ```typescript
-import { useSolanaWallet, useSolanaWalletAddress } from "@wallet-ui/react";
 import { 
-  createSolanaClient, 
+  useSolanaWallet,
+  useSolanaWalletAddress,
+  useSolanaRpc
+} from "@wallet-ui/react";
+import { 
   createTransaction,
   getSignatureFromTransaction,
   getExplorerLink 
@@ -278,15 +356,12 @@ import {
 import { getTransferSolInstruction } from "gill/programs";
 
 export const useTransfer = () => {
-  const [selectedWalletAccount] = useSolanaWallet();
+  const [wallet] = useSolanaWallet();
   const walletAddress = useSolanaWalletAddress();
+  const { rpc, sendAndConfirmTransaction } = useSolanaRpc();
 
   const transfer = async (to: string, amount: number) => {
-    if (!walletAddress || !selectedWalletAccount) return;
-
-    const { rpc, sendAndConfirmTransaction } = createSolanaClient({
-      urlOrMoniker: 'devnet'
-    });
+    if (!walletAddress) return;
 
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
     
@@ -318,7 +393,7 @@ export const useTransfer = () => {
 };
 ```
 
-> Gill provides more explicit transaction building with better type safety and cleaner instruction creation.
+> ✅ **Key Improvement**: Now using `useSolanaRpc()` from wallet-ui to get the RPC client that automatically switches with the selected chain, instead of creating a new client.
 
 ## Account Information
 
@@ -352,18 +427,19 @@ export const useAccountInfo = () => {
 #### After
 
 ```typescript
-import { createSolanaClient, address } from "gill";
+import { useSolanaRpc } from "@wallet-ui/react";
+import { address } from "gill";
 
 export const useAccountInfo = () => {
+  const { rpc } = useSolanaRpc();
+
   const getAccountInfo = async (addressStr: string) => {
-    const { rpc } = createSolanaClient({ urlOrMoniker: 'devnet' });
     const accountAddress = address(addressStr);
     const accountInfo = await rpc.getAccountInfo(accountAddress).send();
     return accountInfo.value;
   };
 
   const getBalance = async (addressStr: string) => {
-    const { rpc } = createSolanaClient({ urlOrMoniker: 'devnet' });
     const accountAddress = address(addressStr);
     const balance = await rpc.getBalance(accountAddress).send();
     return Number(balance.value) / 1_000_000_000; // Convert from lamports
@@ -372,6 +448,76 @@ export const useAccountInfo = () => {
   return { getAccountInfo, getBalance };
 };
 ```
+
+> ✅ **Key Improvement**: Using the RPC client from wallet-ui context instead of creating a new one, ensuring chain switching works correctly.
+
+## Cluster Management
+
+### Network Switching
+
+#### Before
+
+```typescript
+// Manual connection management for different networks
+const devnetConnection = new Connection(clusterApiUrl('devnet'));
+const mainnetConnection = new Connection(clusterApiUrl('mainnet-beta'));
+
+// Switching required recreating connections manually
+const connection = isDev ? devnetConnection : mainnetConnection;
+```
+
+#### After
+
+```typescript
+import { 
+  useSolanaRpc,
+  useSolanaChain
+} from "@wallet-ui/react";
+import { address } from "gill";
+
+// Note: No ClusterDropdown component available yet
+export const ChainInfo = () => {
+  const { chain } = useSolanaChain();
+  
+  return (
+    <div className="flex items-center gap-4">
+      <span>Network: {chain?.label || 'Unknown'}</span>
+      {/* You'll need to build your own chain switching UI */}
+    </div>
+  );
+};
+
+// RPC client automatically switches with chain selection
+export const useNetworkAwareOperations = () => {
+  const { rpc, sendAndConfirmTransaction } = useSolanaRpc();
+  const { chain } = useSolanaChain();
+
+  // RPC client automatically points to the selected chain
+  const getBalance = async (addressStr: string) => {
+    const accountAddress = address(addressStr);
+    const balance = await rpc.getBalance(accountAddress).send();
+    return Number(balance.value) / 1_000_000_000; // Convert from lamports
+  };
+
+  const getCurrentNetwork = () => {
+    return {
+      name: chain?.label || 'Unknown',
+      endpoint: chain?.rpcUrl,
+      chainId: chain?.id
+    };
+  };
+
+  return { 
+    rpc, 
+    sendAndConfirmTransaction,
+    getBalance, 
+    getCurrentNetwork,
+    // All operations automatically use the selected chain!
+  };
+};
+```
+
+> ⚠️ **Current Status**: Wallet-UI handles chain switching automatically through `useSolanaRpc()`. However, UI components for chain switching are not yet available - you'll need to build your own or use the chain configs programmatically.
 
 ## Creating Instructions
 
@@ -556,8 +702,8 @@ export const useClaimStatus = (
 "use client";
 
 import { MerkleTree } from "@/types/index";
-import { useSolanaWalletAddress } from "@wallet-ui/react";
-import { createSolanaClient, address } from "gill";
+import { useWalletUi, useWalletUiSolanaClient } from "@wallet-ui/react";
+import { address } from "gill";
 import { PublicKey } from "@solana/web3.js";
 import { useEffect, useState } from "react";
 
@@ -566,27 +712,23 @@ const PROGRAM_ID = address(
 );
 
 export const useClaimStatus = (
-  rpcUrl: string,
   distributorAddress: string,
   merkleTree: MerkleTree
 ) => {
-  const walletAddress = useSolanaWalletAddress();
+  const { account } = useWalletUi();
+  const { rpc } = useWalletUiSolanaClient();
   const [status, setStatus] = useState<
     "unclaimed" | "claimed" | "ineligible"
   >();
 
   useEffect(() => {
-    if (!walletAddress) return setStatus(undefined);
+    if (!account) return setStatus(undefined);
 
     const checkClaimStatus = async () => {
-      const { rpc } = createSolanaClient({
-        urlOrMoniker: rpcUrl,
-      });
-
       const node = merkleTree.tree_nodes.find((node) => {
         // Convert node.claimant (byte array) to base58 string for comparison
         const nodePublicKey = new PublicKey(node.claimant).toBase58();
-        return nodePublicKey === walletAddress;
+        return nodePublicKey === account.address;
       });
 
       if (!node) return setStatus("ineligible");
@@ -594,7 +736,7 @@ export const useClaimStatus = (
       try {
         // Hybrid approach: Use web3.js for PDA derivation, gill for RPC calls
         const programId = new PublicKey(process.env.NEXT_PUBLIC_PROGRAM_ID || "E7HtfkEMhmn9uwL7EFNydcXBWy5WCYN1vFmKKjipEH1x");
-        const userPubkey = new PublicKey(walletAddress);
+        const userPubkey = new PublicKey(account.address);
         const distributorPubkey = new PublicKey(distributorAddress);
         
         // Keep PDA derivation with @solana/web3.js (works perfectly)
@@ -623,11 +765,162 @@ export const useClaimStatus = (
     };
 
     checkClaimStatus();
-  }, [walletAddress, rpcUrl, distributorAddress, merkleTree]);
+  }, [account, rpc, distributorAddress, merkleTree]);
 
   return { status };
 };
 ```
+
+> ✅ **Key Improvements**: 
+> - Using `useWalletUi()` for wallet account and `useWalletUiSolanaClient()` for RPC client
+> - RPC client automatically switches with cluster changes
+> - No longer need to pass connection/RPC URL as parameters
+> - Cleaner dependency array in useEffect
+
+## Complete Working Example
+
+Here's a full Next.js setup following all the patterns from this migration guide:
+
+### 1. Provider Setup (`providers/solana-provider.tsx`)
+
+```typescript
+"use client";
+
+import React, { ReactNode } from "react";
+import { 
+  WalletUi, 
+  createWalletUiConfig,
+  createSolanaDevnet,
+  createSolanaLocalnet,
+  createSolanaMainnet
+} from "@wallet-ui/react";
+import "@wallet-ui/tailwind/index.css";
+
+interface SolanaProviderProps {
+  children: ReactNode;
+}
+
+const config = createWalletUiConfig({
+  clusters: [
+    createSolanaDevnet(),
+    createSolanaLocalnet(), 
+    createSolanaMainnet(),
+  ],
+});
+
+export const SolanaProvider: React.FC<SolanaProviderProps> = ({ children }) => {
+  return (
+    <WalletUi config={config}>
+      {children}
+    </WalletUi>
+  );
+};
+```
+
+### 2. Wallet Components (`components/wallet-components.tsx`)
+
+```typescript
+"use client";
+
+import dynamic from 'next/dynamic';
+
+// Dynamic imports help avoid SSR issues (recommended for Next.js)
+export const WalletButton = dynamic(
+  async () => (await import('@wallet-ui/react')).WalletUiDropdown,
+  { ssr: false }
+);
+
+export const ClusterButton = dynamic(
+  async () => (await import('@wallet-ui/react')).WalletUiClusterDropdown,
+  { ssr: false }
+);
+```
+
+### 3. Navigation Bar (`components/navbar.tsx`)
+
+```typescript
+import { WalletButton, ClusterButton } from './wallet-components';
+
+export const NavBar = () => {
+  return (
+    <nav className="flex justify-between items-center p-4 bg-gray-100">
+      <h1 className="text-xl font-bold">My Solana dApp</h1>
+      <div className="flex items-center gap-4">
+        <span className="text-sm">Network:</span>
+        <ClusterButton />
+        <WalletButton />
+      </div>
+    </nav>
+  );
+};
+```
+
+### 4. Layout Setup (`app/layout.tsx`)
+
+```typescript
+import { SolanaProvider } from '@/providers/solana-provider';
+import { NavBar } from '@/components/navbar';
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <SolanaProvider>
+          <NavBar />
+          <main>{children}</main>
+        </SolanaProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+### 5. Using Wallet State in Components
+
+```typescript
+"use client";
+
+import { 
+  useWalletUi, 
+  useWalletUiSolanaClient,
+  useWalletUiCluster 
+} from "@wallet-ui/react";
+import { address } from "gill";
+
+export const WalletInfo = () => {
+  const { account, connected } = useWalletUi();
+  const { rpc } = useWalletUiSolanaClient();
+  const { cluster } = useWalletUiCluster();
+
+  const getBalance = async () => {
+    if (!account) return;
+    
+    const accountAddress = address(account.address);
+    const balance = await rpc.getBalance(accountAddress).send();
+    console.log(`Balance: ${balance.value} lamports`);
+  };
+
+  if (!connected || !account) {
+    return <p>Please connect your wallet</p>;
+  }
+
+  return (
+    <div className="p-4">
+      <p>Connected: {account.address}</p>
+      <p>Network: {cluster.label}</p>
+      <button onClick={getBalance} className="btn">
+        Get Balance
+      </button>
+    </div>
+  );
+};
+```
+
+> ✅ **This example demonstrates**: Proper provider setup, dynamic imports, cluster switching, and RPC client usage that automatically adapts to network changes.
 
 <MigrationChecklist 
   sections={[
@@ -642,18 +935,22 @@ export const useClaimStatus = (
     {
       title: "Provider Setup", 
       items: [
-        { id: "replace-provider", text: "Replace ConnectionProvider + WalletProvider with SolanaProvider from @wallet-ui/react" },
-        { id: "remove-css", text: "Remove wallet adapter CSS imports" },
-        { id: "update-config", text: "Update provider configuration with chains array" }
+        { id: "replace-provider", text: "Replace ConnectionProvider + WalletProvider with WalletUi from @wallet-ui/react" },
+        { id: "remove-old-css", text: "Remove wallet adapter CSS imports" },
+        { id: "add-new-css", text: "Add @wallet-ui/tailwind/index.css import (CRITICAL)" },
+        { id: "update-config", text: "Update provider configuration using createWalletUiConfig and cluster helpers" },
+        { id: "add-client-directive", text: "Add 'use client' directive to provider components" },
+        { id: "add-cluster-dropdown", text: "Add WalletUiClusterDropdown for network switching (optional)" }
       ]
     },
     {
       title: "Hooks and Components",
       items: [
-        { id: "replace-wallet", text: "Replace useWallet with useSolanaWallet and useSolanaWalletAddress" },
-        { id: "replace-connection", text: "Replace useConnection with direct createSolanaClient calls" },
-        { id: "update-connection-logic", text: "Update wallet connection/disconnection logic" },
-        { id: "remove-modal", text: "Remove useWalletModal usage" }
+        { id: "replace-wallet", text: "Replace useWallet with useWalletUi for wallet state" },
+        { id: "replace-connection", text: "Replace useConnection with useWalletUiSolanaClient for RPC client" },
+        { id: "add-dynamic-imports", text: "Consider dynamic imports with { ssr: false } for wallet components in Next.js (recommended)" },
+        { id: "update-connection-logic", text: "Use WalletUiDropdown component (recommended approach)" },
+        { id: "remove-modal", text: "Remove useWalletModal and replace with WalletUiDropdown" }
       ]
     },
     {
@@ -712,12 +1009,12 @@ export const useClaimStatus = (
         {
           feature: "Provider Setup",
           old: "Multiple providers (Connection, Wallet, Modal)",
-          new: "Single SolanaProvider with chains"
+          new: "Single WalletUi provider with cluster config"
         },
         {
           feature: "Wallet Connection",
           old: "useWallet + useWalletModal",
-          new: "useSolanaWallet + useSolanaWalletAddress"
+          new: "useWalletUi + WalletUiDropdown/Modal components"
         },
         {
           feature: "Bundle Size",
@@ -733,6 +1030,21 @@ export const useClaimStatus = (
           feature: "Wallet Discovery",
           old: "Manual adapter configuration",
           new: "Automatic via wallet standard"
+        },
+        {
+          feature: "Cluster Switching",
+          old: "Manual RPC connection management",
+          new: "Automatic via useWalletUiSolanaClient + WalletUiClusterDropdown"
+        },
+        {
+          feature: "Next.js Compatibility",
+          old: "Direct imports with potential SSR issues",
+          new: "Dynamic imports with SSR disabled (recommended)"
+        },
+        {
+          feature: "Styling Setup",
+          old: "Import @solana/wallet-adapter-react-ui/styles.css",
+          new: "Import @wallet-ui/tailwind/index.css"
         }
       ]
     },
@@ -814,6 +1126,21 @@ export const useClaimStatus = (
       id: 7,
       title: "Instruction Helpers",
       description: "Gill provides typed helper functions for common instructions, reducing boilerplate code."
+    },
+    {
+      id: 8,
+      title: "RPC Client Management",
+      description: "Always use <code>useWalletUiSolanaClient()</code> instead of creating new clients with <code>createSolanaClient()</code>. The wallet-ui RPC client automatically switches clusters when users change networks."
+    },
+    {
+      id: 9,
+      title: "CSS Import Required",
+      description: "You MUST import <code>@wallet-ui/tailwind/index.css</code> or wallet components will appear unstyled. This is different from the old wallet adapter which had separate CSS packages."
+    },
+    {
+      id: 10,
+      title: "Next.js Dynamic Imports",
+      description: "For Next.js applications, we recommend dynamically importing wallet components with <code>{ ssr: false }</code> to avoid potential SSR hydration issues. While not strictly required, this prevents common client-server mismatches."
     }
   ]}
 />
