@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,8 +18,17 @@ export const metadata: Metadata = {
     default: "cxalem.blog - Full Stack Developer",
     template: "%s | cxalem.blog",
   },
-  description: "Hey, I'm Alejandro! Full Stack Developer working on personal projects and developer tooling. Currently building Lucas Wallet, an embedded wallet for Venezuela. Based in Madrid, Spain.",
-  keywords: ["Full Stack Developer", "Solana", "React", "TypeScript", "Web3", "Madrid", "Spain"],
+  description:
+    "Hey, I'm Alejandro! Full Stack Developer working on personal projects and developer tooling. Currently building Lucas Wallet, an embedded wallet for Venezuela. Based in Madrid, Spain.",
+  keywords: [
+    "Full Stack Developer",
+    "Solana",
+    "React",
+    "TypeScript",
+    "Web3",
+    "Madrid",
+    "Spain",
+  ],
   authors: [{ name: "Alejandro", url: "https://cxalem.blog" }],
   creator: "Alejandro",
   publisher: "cxalem.blog",
@@ -28,12 +38,14 @@ export const metadata: Metadata = {
     url: "https://cxalem.blog",
     siteName: "cxalem.blog",
     title: "cxalem.blog - Full Stack Developer",
-    description: "Hey, I'm Alejandro! Full Stack Developer working on personal projects and developer tooling. Currently building Lucas Wallet, an embedded wallet for Venezuela. Based in Madrid, Spain.",
+    description:
+      "Hey, I'm Alejandro! Full Stack Developer working on personal projects and developer tooling. Currently building Lucas Wallet, an embedded wallet for Venezuela. Based in Madrid, Spain.",
   },
   twitter: {
     card: "summary_large_image",
     title: "cxalem.blog - Full Stack Developer",
-    description: "Hey, I'm Alejandro! Full Stack Developer working on personal projects and developer tooling. Currently building Lucas Wallet, an embedded wallet for Venezuela. Based in Madrid, Spain.",
+    description:
+      "Hey, I'm Alejandro! Full Stack Developer working on personal projects and developer tooling. Currently building Lucas Wallet, an embedded wallet for Venezuela. Based in Madrid, Spain.",
     creator: "@cxalem",
   },
   robots: {
@@ -62,6 +74,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <Analytics />
         {children}
       </body>
     </html>
