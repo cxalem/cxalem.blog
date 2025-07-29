@@ -1,0 +1,572 @@
+---
+title: "Migrating from @solana/web3.js to Gill: A Practical Guide"
+date: "2025-07-29"
+description: "Complete migration guide from @solana/web3.js v1 to gill with real-world examples from a working airdrop claim system"
+tags: ["solana", "blockchain", "migration", "web3", "gill", "typescript"]
+---
+
+# Migrating from @solana/web3.js to Gill: A Practical Guide
+
+**Based on a Working Airdrop Claim Template Project**
+
+> **✅ TESTED**: All examples in this guide are extracted from a working airdrop claim application that successfully uses gill in production on Solana devnet.
+>
+> **🔗 Source Code**: [github.com/cxalem/airdrop-claim-template](https://github.com/cxalem/airdrop-claim-template)
+
+## Why Migrate to Gill?
+
+Gill is a modern alternative to `@solana/web3.js` that offers:
+
+- **🚀 Smaller Bundle Size**: Better tree-shaking and optimized imports
+- **🎯 Explicit API Design**: Clear separation between RPC calls and responses  
+- **🔧 Better TypeScript Support**: Enhanced type safety and developer experience
+- **⚡ Modern JavaScript**: Uses native BigInt instead of custom BigNumber implementations
+- **📦 Composable Architecture**: Modular design for better code organization
+
+This guide shows real-world migration patterns from a working airdrop claiming system.
+
+## Package Installation
+
+### Remove Old Dependencies
+```bash
+npm uninstall @solana/web3.js
+# Note: You may keep @solana/web3.js for specific use cases like PDA derivation during transition
+```
+
+### Install Gill
+```bash
+npm install gill
+```
+
+**Current Versions Used (from working project):**
+```json
+{
+  "gill": "^0.10.2",
+  "@solana/web3.js": "^1.98.2" // Kept for PDA derivation during migration
+}
+```
+
+## Core Concepts Migration
+
+### 1. Client Creation
+
+#### Before: @solana/web3.js
+```typescript
+import { Connection, clusterApiUrl } from '@solana/web3.js';
+
+const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+
+// Usage
+const slot = await connection.getSlot();
+const balance = await connection.getBalance(publicKey);
+```
+
+#### After: Gill
+```typescript
+import { createSolanaClient } from 'gill';
+
+const { rpc, sendAndConfirmTransaction } = createSolanaClient({
+  urlOrMoniker: 'devnet', // or 'mainnet', 'testnet', or full URL
+});
+
+// Usage - explicit .send() pattern
+const slot = await rpc.getSlot().send();
+const balance = await rpc.getBalance(address).send();
+```
+
+**Real Example from the Project:**
+```typescript
+// src/lib/airdrop-client.ts
+export class AirdropClient {
+  private rpc
+  private sendAndConfirmTransaction
+  
+  constructor(config: AirdropClaimConfig) {
+    const client = createSolanaClient({
+      urlOrMoniker: config.network, // 'devnet' | 'mainnet' | 'testnet'
+    })
+    
+    this.rpc = client.rpc
+    this.sendAndConfirmTransaction = client.sendAndConfirmTransaction
+  }
+  
+  async checkClaimStatus(privateKey: string): Promise<boolean> {
+    // Get account info using gill's explicit pattern
+    const accountInfo = await this.rpc.getAccountInfo(address(userClaimPda)).send()
+    return accountInfo.value !== null
+  }
+}
+```
+
+### 2. Address Handling
+
+#### Before: @solana/web3.js
+```typescript
+import { PublicKey } from '@solana/web3.js';
+
+const pubkey = new PublicKey('HcCcKydEcuGMbBso7jciQrFpBw1XQrKHKFckGSAxXXQG');
+const pubkeyString = pubkey.toString();
+```
+
+#### After: Gill
+```typescript
+import { address } from 'gill';
+
+const addr = address('HcCcKydEcuGMbBso7jciQrFpBw1XQrKHKFckGSAxXXQG');
+// address is both the type and the value - no need for .toString()
+```
+
+**Real Example from the Project:**
+```typescript
+// src/lib/airdrop-client.ts
+async validateClaim(signerAddress: string): Promise<void> {
+  // Check balance using gill address function
+  const balance = await this.rpc.getBalance(address(signerAddress)).send()
+  const balanceLamports = Number(balance.value)
+  
+  const minBalanceLamports = AIRDROP_CONFIG.MIN_SOL_BALANCE * 1e9
+  if (balanceLamports < minBalanceLamports) {
+    throw new Error(
+      `Insufficient SOL balance: ${balanceLamports / 1e9} SOL. Need at least ${AIRDROP_CONFIG.MIN_SOL_BALANCE} SOL for transaction fees.`
+    )
+  }
+}
+```
+
+### 3. Response Handling
+
+#### Before: @solana/web3.js
+```typescript
+const balance = await connection.getBalance(publicKey);
+console.log('Balance:', balance); // Direct number
+
+const accountInfo = await connection.getAccountInfo(publicKey);
+console.log('Account:', accountInfo); // Direct object or null
+```
+
+#### After: Gill
+```typescript
+const balance = await rpc.getBalance(address).send();
+console.log('Balance:', balance.value); // Structured response with .value
+
+const accountInfo = await rpc.getAccountInfo(address).send();  
+console.log('Account:', accountInfo.value); // Structured response with .value
+```
+
+**Real Example from the Project:**
+```typescript
+// src/lib/airdrop-client.ts
+async checkClaimStatus(privateKey: string): Promise<boolean> {
+  try {
+    const accountInfo = await this.rpc.getAccountInfo(address(userClaimPda)).send()
+    return accountInfo.value !== null // Access via .value property
+  } catch (error) {
+    return false
+  }
+}
+```
+
+### 4. Transaction Building
+
+#### Before: @solana/web3.js
+```typescript
+import { Transaction, SystemProgram, PublicKey } from '@solana/web3.js';
+
+const transaction = new Transaction().add(
+  SystemProgram.transfer({
+    fromPubkey: fromPublicKey,
+    toPubkey: toPublicKey,
+    lamports: amount,
+  })
+);
+
+const { blockhash } = await connection.getRecentBlockhash();
+transaction.recentBlockhash = blockhash;
+transaction.feePayer = payerPublicKey;
+```
+
+#### After: Gill
+```typescript
+import { createTransaction } from 'gill';
+import { getTransferSolInstruction } from 'gill/programs';
+
+const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
+
+const transferInstruction = getTransferSolInstruction({
+  source: { address: fromAddress },
+  destination: { address: toAddress },
+  amount: BigInt(amount),
+});
+
+const transaction = createTransaction({
+  version: 'legacy',
+  feePayer: signer,
+  instructions: [transferInstruction],
+  latestBlockhash,
+});
+```
+
+**Real Example from the Project:**
+```typescript
+// src/lib/airdrop-client.ts
+private async sendClaimTransaction(params: {
+  signer: any
+  programAddress: any
+  airdropStatePda: string
+  userClaimPda: string
+  proof: any
+}): Promise<string> {
+  const { signer, programAddress, airdropStatePda, userClaimPda, proof } = params
+  
+  // Get latest blockhash using gill
+  const { value: latestBlockhash } = await this.rpc.getLatestBlockhash().send()
+  
+  // Build transaction using gill's structured approach
+  const transaction = createTransaction({
+    version: 'legacy',
+    feePayer: signer,
+    instructions: [
+      {
+        programAddress,
+        accounts: [
+          { address: address(airdropStatePda), role: ACCOUNT_ROLES.WRITABLE },
+          { address: address(userClaimPda), role: ACCOUNT_ROLES.WRITABLE },
+          { address: signer.address, role: ACCOUNT_ROLES.WRITABLE_SIGNER },
+          { address: address(PROGRAM_ADDRESSES.SYSTEM_PROGRAM), role: ACCOUNT_ROLES.READONLY },
+        ],
+        data: instructionData,
+      },
+    ],
+    latestBlockhash,
+  })
+  
+  // Send transaction
+  const signature = await this.sendAndConfirmTransaction(transaction)
+  return signature
+}
+```
+
+### 5. PDA (Program Derived Address) Generation
+
+#### Before: @solana/web3.js
+```typescript
+import { PublicKey } from '@solana/web3.js';
+
+const [pda, bump] = PublicKey.findProgramAddressSync(
+  [Buffer.from('seed'), publicKey.toBuffer()],
+  programId
+);
+```
+
+#### After: Gill
+```typescript
+import { getProgramDerivedAddress } from 'gill';
+
+const [pda] = await getProgramDerivedAddress({
+  programAddress: address(programId),
+  seeds: ['seed', bs58.decode(publicKeyString)],
+});
+```
+
+**Real Example from the Project:**
+```typescript
+// src/lib/airdrop-client.ts
+async checkClaimStatus(privateKey: string): Promise<boolean> {
+  const privateKeyBytes = bs58.decode(privateKey)
+  const signer = await createKeyPairSignerFromBytes(privateKeyBytes)
+  
+  // Generate PDAs using gill
+  const programAddress = address(AIRDROP_CONFIG.AIRDROP_PROGRAM_ID!)
+  const [airdropStatePda] = await getProgramDerivedAddress({
+    programAddress,
+    seeds: ['merkle_tree'],
+  })
+  
+  const [userClaimPda] = await getProgramDerivedAddress({
+    programAddress,
+    seeds: ['claim', bs58.decode(airdropStatePda), bs58.decode(signer.address)],
+  })
+  
+  const accountInfo = await this.rpc.getAccountInfo(address(userClaimPda)).send()
+  return accountInfo.value !== null
+}
+```
+
+### 6. Keypair and Signer Creation
+
+#### Before: @solana/web3.js
+```typescript
+import { Keypair } from '@solana/web3.js';
+import bs58 from 'bs58';
+
+const secretKey = bs58.decode(secretKeyString);
+const keypair = Keypair.fromSecretKey(secretKey);
+```
+
+#### After: Gill
+```typescript
+import { createKeyPairSignerFromBytes } from 'gill';
+import bs58 from 'bs58';
+
+const privateKeyBytes = bs58.decode(secretKeyString);
+const signer = await createKeyPairSignerFromBytes(privateKeyBytes);
+console.log('Address:', signer.address); // Direct access to address
+```
+
+**Real Example from the Project:**
+```typescript
+// src/lib/airdrop-client.ts
+async claimAirdrop(privateKey: string): Promise<ClaimResult> {
+  // Create signer from private key using gill
+  const privateKeyBytes = bs58.decode(privateKey)
+  const signer = await createKeyPairSignerFromBytes(privateKeyBytes)
+  
+  // Signer has .address property directly accessible
+  const proof = generateProofForRecipient(signer.address)
+  if (!proof) {
+    throw new Error(`Address ${signer.address} is not eligible for this airdrop`)
+  }
+  
+  // ... rest of the claim logic
+}
+```
+
+## Advanced Migration Patterns
+
+### Account Role Constants
+
+Gill uses explicit account role constants for better clarity:
+
+```typescript
+// src/lib/airdrop-instructions.ts
+export const ACCOUNT_ROLES = {
+  WRITABLE_SIGNER: 3, // Account that can modify data AND must sign the transaction
+  READONLY_SIGNER: 2,  // Account that only reads data BUT must sign the transaction  
+  WRITABLE: 1,         // Account that can modify data but doesn't need to sign
+  READONLY: 0,         // Account that only reads data and doesn't need to sign
+} as const
+```
+
+**Role Explanations:**
+- **WRITABLE_SIGNER (3)**: Used for user accounts that need to authorize changes (like transferring funds)
+- **READONLY_SIGNER (2)**: Rarely used, for accounts that must sign but won't be modified
+- **WRITABLE (1)**: PDAs or accounts that will be modified by the program (like claim status accounts)
+- **READONLY (0)**: System programs, mint accounts, or other reference-only accounts
+
+Used in transaction building:
+```typescript
+const transaction = createTransaction({
+  version: 'legacy',
+  feePayer: signer,
+  instructions: [
+    {
+      programAddress,
+      accounts: [
+        { address: address(airdropStatePda), role: ACCOUNT_ROLES.WRITABLE },
+        { address: address(userClaimPda), role: ACCOUNT_ROLES.WRITABLE },
+        { address: signer.address, role: ACCOUNT_ROLES.WRITABLE_SIGNER },
+        { address: address(PROGRAM_ADDRESSES.SYSTEM_PROGRAM), role: ACCOUNT_ROLES.READONLY },
+      ],
+      data: instructionData,
+    },
+  ],
+  latestBlockhash,
+})
+```
+
+### Error Handling Patterns
+
+Gill promotes better error handling with structured responses:
+
+```typescript
+// Gill pattern - explicit error handling
+try {
+  const accountInfo = await this.rpc.getAccountInfo(address(userClaimPda)).send()
+  return accountInfo.value !== null
+} catch (error) {
+  // If account doesn't exist, airdrop hasn't been claimed
+  return false
+}
+```
+
+### Configuration Management
+
+Clean configuration with gill:
+
+```typescript
+// src/lib/config.ts
+export const AIRDROP_CONFIG = {
+  NETWORK: (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet') as 'devnet' | 'mainnet' | 'testnet',
+  AIRDROP_PROGRAM_ID: process.env.NEXT_PUBLIC_PROGRAM_ID,
+  MIN_SOL_BALANCE: 0.005, // Minimum SOL needed for transaction fees
+} as const
+
+// Usage in client
+const client = createSolanaClient({
+  urlOrMoniker: config.network, // Direct string, no need for clusterApiUrl
+})
+```
+
+## Hybrid Approach During Migration
+
+The project demonstrates a practical hybrid approach where you can keep some @solana/web3.js functionality during migration:
+
+```typescript
+// Keep @solana/web3.js for PDA derivation (it works perfectly)
+import { PublicKey } from "@solana/web3.js";
+
+// Use gill for RPC calls and transactions
+import { createSolanaClient, address } from "gill";
+
+// Hybrid pattern - PDA with web3.js, RPC with gill
+const [claimStatusPda] = PublicKey.findProgramAddressSync(
+  [
+    Buffer.from("ClaimStatus"),
+    userPubkey.toBuffer(),
+    distributorPubkey.toBuffer(),
+  ],
+  programId
+);
+
+// Convert to gill address for RPC call
+const pdaAddress = address(claimStatusPda.toBase58());
+const claimStatusAccount = await rpc.getAccountInfo(pdaAddress).send();
+```
+
+<MigrationChecklist 
+  sections={[
+    {
+      title: "Dependencies",
+      items: [
+        { id: "install-gill", text: "Install gill package" },
+        { id: "keep-web3js", text: "Optionally keep @solana/web3.js for PDA derivation during transition" }
+      ]
+    },
+    {
+      title: "Client Setup",
+      items: [
+        { id: "replace-connection", text: "Replace new Connection() with createSolanaClient()" },
+        { id: "use-monikers", text: "Use network monikers ('devnet', 'mainnet') instead of clusterApiUrl()" },
+        { id: "extract-client", text: "Extract rpc and sendAndConfirmTransaction from client" }
+      ]
+    },
+    {
+      title: "RPC Calls",
+      items: [
+        { id: "add-send", text: "Add .send() to all RPC method calls" },
+        { id: "update-responses", text: "Update response handling to use .value property" },
+        { id: "replace-blockhash", text: "Replace getRecentBlockhash() with getLatestBlockhash()" }
+      ]
+    },
+    {
+      title: "Address Handling",
+      items: [
+        { id: "replace-publickey", text: "Replace new PublicKey() with address() function" },
+        { id: "remove-tostring", text: "Remove .toString() calls (addresses are already strings)" }
+      ]
+    },
+    {
+      title: "Transaction Building",
+      items: [
+        { id: "replace-transaction", text: "Replace new Transaction() with createTransaction()" },
+        { id: "structured-instructions", text: "Use structured instruction format with account roles" },
+        { id: "update-instruction-creation", text: "Update instruction creation patterns" }
+      ]
+    },
+    {
+      title: "Signers and Keypairs",
+      items: [
+        { id: "replace-keypair", text: "Replace Keypair.fromSecretKey() with createKeyPairSignerFromBytes()" },
+        { id: "access-signer-address", text: "Access signer address directly via .address property" }
+      ]
+    },
+    {
+      title: "PDA Generation",
+      items: [
+        { id: "replace-pda", text: "Replace PublicKey.findProgramAddressSync() with getProgramDerivedAddress()" },
+        { id: "hybrid-pda", text: "Or keep using web3.js PDA derivation and convert results with address()" }
+      ]
+    }
+  ]}
+/>
+
+## Real-World Component Integration
+
+Here's how gill integrates cleanly with React components:
+
+```typescript
+// src/components/claim-button.tsx
+'use client'
+
+import { AirdropClient } from '@/lib/airdrop-client'
+import { AIRDROP_CONFIG, validateConfig } from '@/lib/config'
+import { useState } from 'react'
+
+export const ClaimButton = () => {
+  const [isLoading, setIsLoading] = useState(false)
+  const [status, setStatus] = useState('')
+
+  const claimAirdrop = async () => {
+    setIsLoading(true)
+    setStatus('Initializing...')
+
+    try {
+      validateConfig()
+
+      // Clean client instantiation with gill
+      const client = new AirdropClient({
+        privateKey: AIRDROP_CONFIG.PRIVATE_KEY!,
+        network: AIRDROP_CONFIG.NETWORK,
+      })
+
+      // Simple, clean API calls
+      const alreadyClaimed = await client.checkClaimStatus(AIRDROP_CONFIG.PRIVATE_KEY!)
+      
+      if (alreadyClaimed) {
+        setStatus('Already claimed')
+        return
+      }
+
+      const result = await client.claimAirdrop(AIRDROP_CONFIG.PRIVATE_KEY!)
+      
+      setStatus('Success!')
+      alert(
+        `Airdrop claimed successfully!\nAmount: ${parseInt(result.amount) / 1e9} SOL\nSignature: ${result.signature}`,
+      )
+    } catch (error) {
+      console.error('Error:', error)
+      setStatus('Error occurred')
+      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <button onClick={claimAirdrop} disabled={isLoading}>
+      {isLoading ? 'Claiming...' : 'Claim Airdrop'}
+    </button>
+  )
+}
+```
+
+## Key Benefits Realized
+
+After migrating this airdrop claiming system to gill:
+
+1. **📦 Smaller Bundle**: Better tree-shaking reduced the final bundle size
+2. **🔍 Better Developer Experience**: Explicit `.send()` pattern makes code more readable
+3. **⚡ Improved Performance**: Native BigInt usage and optimized RPC handling
+4. **🎯 Type Safety**: Enhanced TypeScript support catches more errors at compile time
+5. **🧩 Modular Architecture**: Clean separation of concerns between RPC, transactions, and signers
+
+## Getting Help
+
+- **Gill Documentation**: [gill.site](https://gill.site)
+- **Gill Repository**: [github.com/solana-foundation/gill](https://github.com/solana-foundation/gill)
+- **Working Example**: [github.com/cxalem/airdrop-claim-template](https://github.com/cxalem/airdrop-claim-template) - Complete airdrop claim system using gill
+- **Migration Support**: File issues in the gill repository for migration-specific questions
+
+---
+
+**Note**: This guide is based on a working airdrop claim template that successfully uses gill v0.10.2 in production on Solana devnet. All code examples are extracted from the actual working implementation. 
