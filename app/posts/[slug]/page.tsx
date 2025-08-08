@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
   }
 
   const { title, description, tags } = post.metadata;
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.cxalem.blog';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://cxalem.blog';
   
   // Create OG image URL with post data
   const ogImageUrl = new URL(`${baseUrl}/api/og`);
