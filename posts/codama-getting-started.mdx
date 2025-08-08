@@ -1,0 +1,910 @@
+---
+title: "Codama Getting Started Guide"
+date: "2025-08-08"
+description: "Practical guide to Codama for Solana: generate TypeScript and Rust clients from a Codama IDL, migrate from Anchor, and integrate with Solana Kit/Umi."
+tags: ["solana", "codama", "idl", "code-generation", "typescript", "rust", "web3"]
+---
+
+# Codama Getting Started Guide
+
+**Package:** codama
+**Current version reviewed:** 1.3.1
+**License:** MIT
+**Last verified:** 2025-08-06
+**Links:** [NPM](https://www.npmjs.com/package/codama), [GitHub](https://github.com/codama-idl/codama), [Solana SE (Codama Tag)](https://solana.stackexchange.com/questions/tagged/codama), [Releases](https://github.com/codama-idl/codama/releases)
+
+## What It Is & When to Use It
+
+**Codama** (formerly *Kinobi*) is a toolkit for Solana programs that generates client libraries, CLIs, and documentation from a single **Codama IDL** (Interface Definition Language). In plain English, Codama lets you describe your Solana program in a standard JSON format and then **automatically generate TypeScript and Rust client code** to interact with that program. It was created with Anchor framework developers in mind, especially as Solana moved to the new `@solana/web3.js v2` (Solana Kit) – Codama’s TypeScript client replaces the traditional Anchor client SDK and works seamlessly with Solana Kit.
+
+**Key features:**
+
+* **Standardized IDL format:** Codama IDL captures more program details than a typical Anchor IDL, enabling richer metadata (60+ node types covering accounts, instructions, types, errors, etc.). This ensures a more complete description of your program’s interface.
+* **Code generation for multiple targets:** Out-of-the-box visitors (plugins) can generate **TypeScript clients** (for Solana Kit or Metaplex Umi) and **Rust SDKs** from the same IDL. *Example:* one Codama config can output a TS web client and a Rust client crate.
+* **Pluggable “visitor” architecture:** Codama uses the Visitor pattern to traverse the IDL tree and produce outputs or transformations. You can easily add custom visitors to generate other languages, filter or transform the IDL (e.g. remove internal fields), or produce docs/CLIs.
+* **Anchor integration and conversion:** Codama provides tools to **convert Anchor IDLs into Codama IDLs**. If you’re already using Anchor, you can plug in your Anchor-generated JSON and get a Codama IDL (with optional enrichment).
+* **Solana Kit compatibility:** The generated TS clients are designed to work with Solana Kit (web3.js v2) and Metaplex Umi, modern alternatives to the older `@coral-xyz/anchor` client and web3.js v1.
+* **Planned ecosystem features:** While currently focused on client codegen, Codama’s design opens the door to auto-generated CLIs and documentation (these are **not available yet** as of v1.3.1). Support for embedding IDL info via Rust macros is also on the roadmap.
+
+**Limitations:** Codama itself doesn’t compile or deploy your Solana program – it operates on the program’s IDL (you still use Anchor or another framework to build the program). Some features are in progress: e.g. **on-chain IDL registration** (to let explorers fetch your IDL) and built-in CLI/documentation generators are **coming soon** but not ready yet. Also, Codama requires an IDL as input – if your program isn’t Anchor-based and you don’t have an IDL, you’d need to craft one manually or adopt the upcoming macros.
+
+**When to use Codama:** Use Codama if you have a Solana program (especially an **Anchor program**) and you want to **quickly generate clients** or other tooling for it. It shines in scenarios where you’re migrating to Solana Kit, building web backends or frontend dApps that interact with your program, or maintaining multiple programs (Codama can standardize and speed up client generation across them). Codama is ideal for **Anchor developers upgrading** their stack – it produces a client that works similarly to Anchor’s, but on the newer Solana APIs. It’s also useful for non-Anchor programs if you supply a Codama IDL by hand or via Shank (Rust) macros.
+
+**When *not* to use Codama:** If you only need a quick script or two to call a couple of instructions, using a generated client might be overkill – a few calls with `@solana/web3.js` or Solana Kit could suffice. Similarly, if you’re already locked into the Anchor TS client and web3.js v1 (and can’t upgrade), Codama’s benefits diminish (though that stack is becoming outdated). Codama is a development tool, not a runtime dependency – you wouldn’t use it to send transactions on the fly in production (instead, you use the code it generated). It’s also not a replacement for Anchor’s program building features; think of Codama as complementary for the client side and documentation.
+
+## Ecosystem & Compatibility
+
+**Runtime environment:** Codama is primarily meant to run in a **Node.js environment** (>= **Node 18** recommended) as a build-time or development tool. The core library and CLI run on the backend (Node) to generate files. There is no requirement to run a Solana validator or cluster during codegen – Codama works purely with your program’s IDL JSON. The generated **TypeScript client code** can be used in Node (e.g. Mocha/Jest tests) *and* in the browser (e.g. a Next.js app), since it targets the cross-platform Solana Kit and Umi APIs. Codama itself, however, is not typically used *in* the browser. (Technically, it’s possible to import Codama via a CDN, but any code-generation in a browser would have to present the output to the user rather than write to disk.)
+
+**Module format:** The `codama` package is published with both ESM and CommonJS support. This means you can use it with `import` in an ES Module or via `require()` in CommonJS. The package defines an **`exports` map**, so bundlers and Node will resolve the correct entry. Tree-shaking is supported – Codama’s modules have no side effects (it’s essentially pure functions and classes), and the `package.json` indicates built-in type declarations. You can safely mark it as a dev dependency to exclude it from production bundles.
+
+**Dependencies and peers:** Codama’s core has a modular design. The main `codama` library depends on sub-packages like `@codama/nodes` (which defines the IDL node types), `@codama/visitors` (base visitor logic), and others. You typically **install additional packages** for specific tasks: e.g. `@codama/nodes-from-anchor` to handle Anchor IDL conversion, and `@codama/renderers` (or `@codama/renderers-js`, `-js-umi`, `-rust`) for code generation visitors. These are *optional add-ons* – for example, if you only care about TypeScript clients, you might install `@codama/renderers-js` and skip the Rust package. There are **no peer dependencies** that you must install for Codama itself; however, the generated TS client will expect you to have the relevant Solana libraries (like `@solana/kit` or `@metaplex-foundation/umi`) when you use that client. Those library dependencies are documented by the renderer (e.g. clients from `renderers-js` use Solana Kit, clients from `renderers-js-umi` use Umi). Codama’s output also assumes a recent TypeScript version for best results (TS ≥4.7 for modern import syntax, typically).
+
+**Framework compatibility:** Codama is framework-agnostic. You can integrate it into **Next.js** or any build setup by running the codegen as part of your build or deploy process. The generated code is just TypeScript/JavaScript, which can be imported into a Next.js app (including SSR contexts) without issue – in fact, one goal is to let you use your program from both Node scripts and React apps seamlessly. Codama’s TypeScript clients work in the browser (with bundlers like Webpack/Vite) because Solana Kit and Umi are designed for browser use. For **serverless/edge** runtimes, as long as the Solana networking libraries support them, the Codama client can run there (e.g. using Umi on Cloudflare Workers). Codama’s CLI itself expects a Node environment (it won’t run in serverless). There is currently no Deno-specific support, but given the simple output (ESM), Deno could likely import a generated client with minor tweaks.
+
+**Node/Anchor version compatibility:** The `@codama/nodes-from-anchor` converter supports Anchor IDL JSON from various Anchor versions (including older 0.x IDLs and the newer `coral-xyz/anchor` 0.26+ format). If you encounter an older or edge-case Anchor IDL, Codama will still generate a tree, though you might need to fill in some details manually if Anchor omitted them. The generated TS clients target Solana **Web3.js v2** (Kit) or **Umi** by design; they are **not** meant to be used with the legacy Web3.js v1. If you absolutely need a Web3.js v1 client, you would stick to Anchor’s client or use a different generator – Codama’s focus is on the modern stack.
+
+**Takeaway:** Codama fits into your dev toolchain (Node 18+/pnpm/Yarn) and outputs standard ESM/TypeScript code that is compatible with contemporary Solana client libraries. It’s designed to help you migrate to or start fresh with Solana Kit, and remains flexible via its plugin architecture. No special environment is needed beyond Node and your program’s IDL file.
+
+## Installation
+
+You can install Codama and its related packages via npm, pnpm, or yarn. Typically, you’ll want the **core library** and one or more **visitor packages** for your use case. For example, to convert an Anchor IDL and generate a TypeScript client, install the core and necessary visitors:
+
+```bash
+# Using pnpm (recommended for monorepos/Next.js)
+pnpm add -D codama @codama/nodes-from-anchor @codama/renderers
+
+# Using npm
+npm install --save-dev codama @codama/nodes-from-anchor @codama/renderers
+
+# Using Yarn
+yarn add --dev codama @codama/nodes-from-anchor @codama/renderers
+```
+
+If you prefer to use the **Codama CLI** tool (which provides a convenient `codama` command), install `@codama/cli` as well:
+
+```bash
+pnpm add -D @codama/cli   # provides the "codama" CLI command
+```
+
+It’s recommended to install the CLI locally (as a dev dependency) rather than globally, so that your project always uses the correct version under version control. Once installed, you can run it via your package manager (e.g. `pnpm codama init`). The CLI will help scaffold a config file and run code generation (more on this below).
+
+**Version pinning:** Codama follows SemVer for its packages. Version **1.3.1** is the latest stable release (as of this writing). It’s generally safe to use a caret range (e.g. `^1.3.0`) to get minor updates and patches. If you want to avoid any changes, pin the exact version. Note that some sub-packages may have independent version bumps (for instance, `@codama/cli` might be `1.2.x` while core is `1.3.x` – this is normal as features are rolled out gradually). Always check the release notes when upgrading major versions. For production use, **lock your dependencies** (via `pnpm-lock.yaml` or `package-lock.json`) to prevent unintentional changes.
+
+**Prerequisites:** Codama requires Node.js. It does not require any specific build tools beyond that. If you are generating TypeScript, you’ll want **TypeScript 4.x** available to compile the output. To obtain an IDL, if you are using Anchor you should have Anchor installed to produce the JSON; otherwise ensure you have an IDL file ready. No other system dependencies (like Rust or Solana CLI) are needed for Codama itself – it works at the JavaScript level.
+
+**Engine compatibility:** The `package.json` for some Codama packages indicates a minimum Node version (e.g. Node 18 or 20) as they leverage modern JavaScript features. Using Node 18+ will guarantee compatibility. If you try to use Codama with an older Node (like 14), you may run into syntax issues.
+
+After installation, you’re ready to use Codama either via the CLI or through code. In the next sections we’ll walk through a quick start example and then dive deeper into configuration.
+
+## Quick Start (Hello World)
+
+Let’s jump in with a simple **“Hello World”** example: we’ll convert an Anchor IDL into a Codama IDL and generate a TypeScript client for it. This example assumes you already have an Anchor program and its JSON IDL (for example, `my_program.json` in Anchor’s `target/idl/` directory).
+
+**1. Create a generation script (JavaScript):** In your project, make a file (for example `generate-client.js`) and add the following:
+
+```js
+// generate-client.js (CommonJS)
+const { createFromRoot } = require('codama');
+const { rootNodeFromAnchor } = require('@codama/nodes-from-anchor');
+const { renderJavaScriptVisitor } = require('@codama/renderers');
+
+// Load the Anchor IDL JSON (replace with your actual path)
+const anchorIdl = require('./target/idl/my_program.json');
+
+// Create a Codama IDL tree from the Anchor IDL
+const codama = createFromRoot(rootNodeFromAnchor(anchorIdl));
+
+// Run the JavaScript client generator visitor on the Codama IDL
+codama.accept(renderJavaScriptVisitor('clients/js/src/generated', {}));
+
+console.log('✅ Codama client generated under clients/js/src/generated/');
+```
+
+This script does the following: it imports Codama’s core functions, reads an Anchor IDL JSON, and produces a Codama representation of your program. Then it **accepts** the JavaScript rendering visitor which writes out a TypeScript/JavaScript client into the `clients/js/src/generated` directory. After running, you should see a success message and find new files in `clients/js/src/generated` (the client SDK).
+
+**2. Run the script:** Ensure you’ve built your Anchor program to have an IDL file ready (e.g. run `anchor build` first to produce the JSON). Then execute the script with Node:
+
+```bash
+node generate-client.js
+```
+
+This will output a series of generated files (TypeScript source files for your program’s instructions, accounts, errors, etc.). You can now use these in your application. For example, a function like `initialize()` or `setData()` will be available to call your program’s instructions via Solana Kit.
+
+*Expected output:* The console log should print the success message. If you inspect `clients/js/src/generated`, you’ll see files such as `programId.ts`, `accounts/[AccountName].ts`, `instructions/[InstructionName].ts`, etc., representing your program’s interface in TypeScript.
+
+**Quick TypeScript variant:** If you prefer to write the generator in TypeScript (for type safety), create `generate-client.ts`:
+
+```ts
+// generate-client.ts (ESM/TypeScript)
+import { createFromRoot } from 'codama';
+import { rootNodeFromAnchor } from '@codama/nodes-from-anchor';
+import { renderJavaScriptVisitor } from '@codama/renderers';
+import type { AnchorIdl } from '@codama/nodes-from-anchor';  // Type of Anchor IDL JSON
+
+// Import the IDL JSON (enable "resolveJsonModule" in tsconfig.json to do this)
+import anchorIdl from '../target/idl/my_program.json'; 
+
+const codama = createFromRoot(rootNodeFromAnchor(anchorIdl as AnchorIdl));
+await codama.accept(renderJavaScriptVisitor('clients/js/src/generated', {}));
+
+console.log('✅ Codama client generated.');
+```
+
+In this TS version, we use ESM `import` syntax. Note: to import a JSON file, set `"resolveJsonModule": true` in your `tsconfig.json` (or instead read the file with `fs.readFileSync`). Also, because `codama.accept` can return a Promise (some visitors are async), we `await` it. You can run this with `ts-node generate-client.ts` or compile it and run with Node.
+
+After running the TypeScript script, the outcome is the same set of generated client files. You can now move on to actually using the client in a project or tests.
+
+**Running the client:** To verify everything, let’s use the generated client to call an instruction. Suppose your program has an instruction `initialize()`. In a Node script or test, you could do:
+
+```ts
+import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';  // Solana Kit (Umi) setup
+import { initialize } from './clients/js/src/instructions';
+
+const umi = createUmi('http://localhost:8899'); // local validator or devnet URL
+// ...set up keypairs etc.
+await initialize(umi, { /* accounts */ }).sendAndConfirm(umi);
+console.log('Initialized the account!');
+```
+
+The details of using the client are covered in the next sections, but if you reached this point: congratulations, you used Codama to generate and use a Solana program client 🎉.
+
+*One-line takeaway:* Codama’s quick start is: **feed it an IDL, run a visitor, and get usable code**.
+
+## Project Setup Examples
+
+Codama can fit different project setups. Here are a few common scenarios:
+
+### Node.js Usage (ESM & CJS)
+
+In a pure Node backend (say a script or a backend service), you can use Codama programmatically:
+
+* **ESM (TypeScript or modern Node):** Use `import` statements. For example, in a Next.js API route or a build script:
+
+  ```ts
+  import { createFromRoot } from 'codama';
+  import { rootNodeFromAnchor } from '@codama/nodes-from-anchor';
+  import { renderRustVisitor } from '@codama/renderers';
+  ```
+
+  Then call `createFromRoot(anchorIdl)` and `codama.accept(renderRustVisitor(...))` as needed. Ensure `"type": "module"` in your `package.json` or use `.mjs` extension for Node ESM.
+
+* **CommonJS:** If your environment is CommonJS (older Node or a script file without ESM), use `require()`:
+
+  ```js
+  const { createFromRoot } = require('codama');
+  const { rootNodeFromAnchor } = require('@codama/nodes-from-anchor');
+  ```
+
+  The rest of the usage is the same. Codama’s packages are distributed compatible with both module systems.
+
+**File structure:** A typical project using Codama might look like:
+
+```ascii
+my-solana-app/
+├── target/idl/my_program.json        # Anchor-generated IDL (input)
+├── codama.json                       # Codama config (if using CLI)
+├── scripts/
+│   └── generate-client.ts            # Script to run Codama programmatically
+├── clients/
+│   └── js/src/generated/...          # Generated TypeScript client code
+├── src/ or tests/                    # Your application/test code
+└── package.json
+```
+
+You can adapt this structure as needed. For example, some prefer `generated/` at the root or inside `src/`. The Codama CLI will default to a similar layout when you run `codama init`.
+
+### Using Codama CLI in a Project
+
+If you use the CLI (`@codama/cli`), you can avoid writing a custom script. After installation, do:
+
+```bash
+pnpm codama init
+```
+
+This interactive command will ask for the path to your IDL and suggest presets for scripts. It then creates a `codama.json` config file in your project. For example, a minimal `codama.json` might be:
+
+```json
+{
+  "idl": "target/idl/my_program.json",
+  "scripts": {
+    "js": [
+      { "from": "@codama/renderers-js", "args": ["clients/js/src/generated"] }
+    ]
+  }
+}
+```
+
+This config says: use the IDL at the given path, and define a script named `"js"` that runs the JavaScript renderer visitor (outputting to `clients/js/src/generated`). You could add more scripts (like `"rust"` for a Rust client, etc.) or “before” visitors as needed. Once the config is ready, run:
+
+```bash
+pnpm codama run js   # runs the 'js' script (and any 'before' visitors)
+```
+
+This will generate the client code as configured. The CLI is essentially doing what our manual script did, but using the JSON config as input.
+
+**Next.js integration:** In a Next.js project, Codama would typically be used at build-time or in a setup step, rather than at runtime within a page. For example, you might add a script in your `package.json`:
+
+```json
+"scripts": {
+  "generate-client": "ts-node scripts/generate-client.ts"
+}
+```
+
+and run `pnpm generate-client` whenever your program IDL updates (or as part of CI/CD). Next.js can then include the generated client code in your app bundle. If your Next.js app interacts with the Solana program on the client side, you’d likely call the generated functions (like `initialize(...)`) from within React components or API routes, just as you would call Anchor’s client or web3.js. The key is that the generated code has no Node-specific dependencies, so it can run in the browser.
+
+For **backend-only** Next.js usage (e.g. using Next.js API routes or a separate server), you can use Codama in those Node contexts similarly to a plain Node script.
+
+### Browser and CDN usage
+
+Using Codama *directly* in the browser is less common, but possible for experimentation. The package is available on jsDelivr and unpkg. For instance, you could include:
+
+```html
+<script type="module">
+  import { createFromRoot } from "https://cdn.jsdelivr.net/npm/codama@1.3.1/dist/index.esm.js";
+  // ...other imports like nodes-from-anchor, etc.
+</script>
+```
+
+However, note that visitors like `renderJavaScriptVisitor` attempt to write files to a path, which won’t work in a browser. So browser usage would be limited to reading or transforming IDLs in-memory, not saving files. A more realistic scenario is a future **Codama Playground** web app (as hinted by the Codama team) where you could visualize or partially generate from an IDL. For now, prefer running Codama in Node and then using the outputs in the browser.
+
+**Framework-specific notes:** If you’re using a **different framework** (e.g. a Rust backend or a CI pipeline), you can still use Codama by calling it via Node. For example, you could have a Cargo build script that invokes `node generate-client.js` after building the program. Codama is language-agnostic in output; it can slot into any workflow where generating SDKs from IDLs is needed. Some ecosystems (like **Gill**, a Solana framework) integrate Codama under the hood – e.g. Gill can generate Codama configs for you. But even then, it’s doing what we’ve described: calling Codama to do the heavy lifting.
+
+**Summary:** Set up Codama in whatever way fits your project – either via a config/CLI or a custom Node script. Organize your IDL and output folders clearly (perhaps under a `clients/` directory). The generated code can then be imported wherever you need to interact with your program.
+
+## Core Concepts & API Overview
+
+Understanding Codama’s core concepts will help you use it effectively:
+
+### Codama IDL and Nodes
+
+At the heart of Codama is the **Codama IDL**, which is a structured, hierarchical representation of your program’s interface. It’s composed of **nodes** in a tree structure, starting from a `RootNode`. Key node types include:
+
+* **RootNode:** The top-level node containing metadata (like the Codama version) and the `ProgramNode`.
+* **ProgramNode:** Describes your program (name, ID, etc.) and holds child nodes for instructions, accounts, errors, constants, etc.
+* **InstructionNode:** Represents an instruction (entrypoint) in your program, including its name, args, accounts constraints, etc.
+* **AccountNode:** Represents an account type (struct) used by the program, with its fields and data layout.
+* **EnumNode, ErrorNode, TypeNodes,** etc.: There are nodes for each kind of type or item (enums, custom types, error codes, PDAs, etc.). In total, Codama defines **over 60 node classes** to capture nearly every detail of a Solana program.
+
+This granular structure is what allows Codama to generate rich outputs. For example, an Anchor IDL might not include all type info for certain fields, but Codama nodes can accommodate that information if provided. You typically don’t construct these nodes by hand; instead, you get them by converting an existing IDL (`rootNodeFromAnchor(anchorIdl)` gives you a ready-made tree).
+
+You can inspect or traverse the node tree yourself if needed. Each node class has properties for its data (e.g. an `InstructionNode` might have a `name` and a list of `args` which are themselves nodes of type `ArgumentNode`, etc.). This is an advanced use-case (most users let the visitors handle traversal), but it’s good to know that the IDL is an in-memory object graph you can manipulate.
+
+### Visitors
+
+Codama uses a **Visitor pattern** to operate on the IDL tree. A **Visitor** is an object or class with methods corresponding to node types (e.g. `visitInstruction(node)`, `visitAccount(node)`, etc.), or a function that returns such an object. Visitors can **traverse** the tree (Codama handles walking through all child nodes) and perform actions like transforming nodes or generating output files.
+
+Some important built-in visitors and their purposes:
+
+* **Renderers:** These generate code. For example:
+
+  * `renderJavaScriptVisitor(outputDir, options)` – returns a visitor that will create a JS/TS client in the specified directory. The output includes TypeScript code to construct and send instructions using Solana Kit (with helper functions for each instruction, accounts decoder, etc.).
+  * `renderJavaScriptUmiVisitor(outputDir, options)` – similar, but the client uses the Umi framework (Metaplex).
+  * `renderRustVisitor(outputDir, options)` – generates a Rust SDK (e.g. a client module for your program).
+* **IDL transformers:** These modify the Codama IDL itself. For instance, a (hypothetical) `removeInternalTypesVisitor(["Foo", "Bar"])` could remove certain internal account types you don’t want exposed. In fact, in the CLI config example, they pass a visitor from an npm package with `removeTypes` functionality as a pre-processing step.
+* **Validators/Analyzers:** Codama has packages like `@codama/validators` that might include visitors to validate the integrity of an IDL or gather stats. These aren’t commonly used in a getting-started context, but exist for advanced use (ensuring your IDL is complete, etc.).
+
+Using a visitor is straightforward via the API:
+
+* If you have a Codama instance (from `createFromRoot`), call `codama.accept(visitor)`. Codama will traverse the IDL and apply the visitor’s logic.
+* Alternatively, use the functional form: `import { visit } from '@codama/visitors-core';` and call `visit(rootNode, visitor)`. This does the same traversal. (The Codama instance’s `.accept` likely just calls this under the hood.)
+
+**Example:** Generating both JS and Rust clients in one go:
+
+```js
+const codama = createFromRoot(rootNodeFromAnchor(idl));
+codama.accept(renderJavaScriptVisitor('clients/js/src', {}));
+codama.accept(renderRustVisitor('clients/rust/src', {}));
+```
+
+Here we sequentially run two visitors on the same IDL. The first writes the TS client, the second writes the Rust client. Codama doesn’t “consume” the IDL by visiting – you can reuse the codama object for multiple visitors.
+
+Visitors can also **modify** the IDL. For instance, a visitor could traverse and change certain nodes (perhaps rename an instruction or annotate something). This can be useful to enrich or adjust the IDL between generation steps. Be mindful that if you run multiple visitors that mutate the tree, their order matters.
+
+### Codama API
+
+The primary functions and classes you’ll encounter are:
+
+* **`createFromRoot(rootNode)`** – Creates a Codama instance wrapping a `RootNode`. In most cases, you get a root node via a converter like `rootNodeFromAnchor(idl)`. You could also manually construct a `RootNode` (not typical) or use future Codama Rust macros to produce one.
+* **`Codama` class** – The object returned by `createFromRoot`. This likely provides methods like `.accept(visitor)` and perhaps properties to inspect the IDL. Think of it as a convenient wrapper; you could also just keep the `RootNode` itself.
+* **`visit(rootNode, visitor)`** – A utility to apply a visitor without needing a Codama wrapper. Use this if you prefer functional style or are not using other Codama instance features.
+* **Node classes/types** – e.g. `ProgramNode`, `InstructionNode`, etc. These are mostly used internally or by visitors, but you can import type definitions from `@codama/nodes` or `@codama/node-types` if needed. For example, if you wanted to write a custom visitor in TypeScript, you might import `InstructionNode` type for typings.
+* **IDL conversion functions** – For now, that’s primarily `rootNodeFromAnchor(anchorIdlJson)`. This function takes an Anchor-generated IDL JSON object and returns a Codama `RootNode`. There may be others (e.g. if Shank macros produce a different JSON shape, Codama might offer a converter for that, or you can construct nodes manually).
+
+All of the above are fully typed if you’re using TypeScript – you can explore definitions in `node_modules/codama/dist` or via your editor IntelliSense.
+
+### Defaults and configuration in code
+
+When calling visitors, you often see an `options` object passed (we used `{}` above as a placeholder). **What options are available?** This depends on the visitor. For example, the JS renderer might accept options like `{ generateSDK: boolean, programId?: string }` – hypothetically to toggle certain output features. The Codama README doesn’t list all options, so if it’s not documented, you may need to check the source or open an issue. In our quick start, we passed an empty object which means **sane defaults** are used for generation. Generally, if a feature isn’t clearly needed, you can omit the options or pass `{}`. Codama’s default behavior is usually sufficient (e.g. it will use the program ID from the IDL, output TypeScript with ESNext syntax, etc., by default).
+
+One **default transformation** to be aware of: `rootNodeFromAnchor` by default might run a **“default visitor”** internally to tweak the IDL (the Codama docs hint that some info Anchor IDL lacks can be auto-filled or transformed). In QuickNode’s example, they used `rootNodeFromAnchorWithoutDefaultVisitor`, which suggests the default conversion does something extra (perhaps filtering out Anchor’s event types or adjusting enums). The specifics aren’t fully documented; if you see subtle differences, try with and without the default visitor. Usually, you can trust the default conversion.
+
+In summary, **Codama’s API** provides a simple way to go from IDL JSON to a navigable object model, and from that to various outputs using visitors. Most of your interaction will be “setup and let visitors do the work”, rather than deeply manipulating nodes yourself.
+
+## Configuration & Advanced Usage
+
+While the programmatic API is straightforward, Codama’s **configuration file** (used with the CLI) deserves a closer look for advanced setups. The config is typically a JSON (or JS) file named `codama.json` by default.
+
+### Codama Config File (`codama.json`)
+
+A Codama config defines an object with a few top-level keys:
+
+* **`idl`** (string): Path to your IDL file. This can point to a Codama IDL (if you have one saved) or an Anchor IDL. **If it’s an Anchor IDL, Codama will automatically convert it** to Codama format internally. You can use relative paths (relative to the config file’s location) or absolute paths.
+* **`before`** (array, optional): A list of visitors to run *before* any script. This is typically used to apply transformations to the IDL that should affect all scripts. For example, you might remove certain internal accounts or add additional metadata. Each entry in this array follows the visitor notation (see below).
+* **`scripts`** (object): This defines named scripts and their visitor sequences. Each key in this object is a script name (like `"js"`, `"rust"`, `"docs"`, etc.), and the value is an array of visitors to run for that script. When you run `codama run <scriptName>`, Codama will first run all `before` visitors (if any), then run each visitor listed in the script’s array in order.
+
+The **visitor notation** in the config can be either of two forms:
+
+* An **object** with fields:
+
+  * `from` – a string specifying the module to import (relative path or package name).
+  * `args` – an array of arguments to pass to that module’s default export (or specified export).
+* A **string** – shorthand for the above, treated as `from` with no args (equivalent to an object with an empty `args` array).
+
+For example, in a config:
+
+```json
+"before": [
+  "./scripts/remove-internal.js",
+  { "from": "some-package#visitorFunc", "args": [["Foo", "Bar"]] }
+]
+```
+
+The first entry will import the default export from a local file `scripts/remove-internal.js` (relative to config) and use it as a visitor. The second will import a named export `visitorFunc` from the npm package `some-package`, and call it with argument `["Foo", "Bar"]` (notice the `#` syntax to separate module path and export name). The called function is expected to return a visitor object. Codama will resolve these imports using Node’s resolution, so you can use installed packages or local paths.
+
+**Example config:** The earlier snippet from the CLI:
+
+```json
+{
+  "idl": "target/idl/my_program.json",
+  "before": [
+    "./my-before-visitor.js",
+    { "from": "some-library#removeTypes", "args": [["internalFoo", "internalBar"]] }
+  ],
+  "scripts": {
+    "js": [
+      { "from": "@codama/renderers-js", "args": ["clients/js/src/generated"] }
+    ]
+  }
+}
+```
+
+This shows a more complete picture:
+
+* Before running any script, it will load `my-before-visitor.js` (likely a custom visitor you wrote) and also call `removeTypes` from `some-library` with `["internalFoo","internalBar"]` (maybe removing those internal types).
+* It defines one script `"js"` that uses the official `@codama/renderers-js` visitor with argument `"clients/js/src/generated"`, meaning output the JavaScript client to that directory.
+* If you wanted to add, say, a Rust script, you could add:
+
+  ```json
+  "rust": [
+    { "from": "@codama/renderers-rust", "args": ["clients/rust/src/generated"] }
+  ]
+  ```
+
+  Then `codama run rust` would generate the Rust client.
+
+The config can be written in JSON or JS. The CLI even allows generating a `.js` config via `codama init --js`. A JavaScript config might export an object or use a helper from another tool (for example, the Gill framework’s docs show a `createCodamaConfig` helper that returns a config object in a `.js` file).
+
+**Running scripts:** With a config in place, running the CLI is simple:
+
+```bash
+codama run            # runs the 'before' visitors only (no script, just pre-processing)
+codama run js rust    # runs 'before' then the 'js' script, then the 'rust' script in sequence
+codama run --all      # runs 'before' and then all scripts defined in config
+```
+
+This gives you fine-grained control. You can have as many scripts as you like (generate docs, CLI, clients for multiple languages, etc.). If some scripts share common steps, put those in `before` so they run once up-front.
+
+### Custom Visitors (Advanced)
+
+One of Codama’s strengths is extensibility. You can create your own visitors to manipulate the IDL or produce custom outputs. This is advanced, but to sketch it out:
+
+* A visitor can be any object with methods named `visitXxx(node, context)` where `Xxx` is a node type (like `visitInstruction`, `visitAccount`, etc.), or a function that returns such an object. Codama’s traversal will call the appropriate methods as it walks the tree. If a visitor doesn’t implement a method for a node type, that node is just skipped (or its children visited).
+* Custom visitors can be local (as shown in the config, e.g. `./my-before-visitor.js`). For example, you might write a visitor that prints all instruction names for documentation, or one that generates a JSON file with metrics about your IDL.
+* If writing one in TypeScript, you’d import types from `@codama/node-types` for strong typing of nodes. You can also extend the base visitor classes from `@codama/visitors-core`.
+
+After writing your visitor, include it via the config or call it directly with `codama.accept`. The Codama docs hint that new features are often “just a visitor away” – meaning you (or the community) can implement them without changing Codama’s core.
+
+### Performance and Large Programs
+
+For most Solana programs, Codama runs very quickly (generating a client is usually a second or two at most). If you have a *very large* IDL (hundreds of instructions or very complex types), you might wonder about performance:
+
+* **Traversal** of the node tree is efficient (just iterating JS objects).
+* **File generation** is I/O bound but writing out tens or even hundreds of TypeScript files is usually fine. If needed, visitors like `renderJavaScriptVisitor` might support options to output a single combined file vs multiple files (not documented, but for smaller codebase you might combine files).
+* There is no built-in caching yet. Each run reads the IDL and generates files from scratch. If your IDL hasn’t changed, you’ll regenerate identical files. You could incorporate a check (like compare hashes of IDL) to skip generation if unchanged, in your own workflow. But Codama itself doesn’t cache outputs.
+* The generated code is typically as optimized as what a human would write, but if you only use a portion of it, you might tree-shake the rest. For example, if you only need 2 out of 10 instructions on the frontend, you can import only those instruction functions; bundlers will drop the rest if the code is properly marked with ESM exports (and Codama’s output *is* tree-shakable ES modules).
+
+### Security Considerations
+
+Codama operates on code generation, so direct security issues are minimal, but keep in mind:
+
+* **Untrusted IDLs:** If someone provides you an IDL to generate a client, the process is safe – the IDL is just data. However, be cautious of any **visitors** from third-party packages. A malicious visitor could execute arbitrary code during generation (since it runs in Node). Only use visitors from trusted sources, same as any npm package.
+* **Output code review:** Always review the generated code, especially if you plan to use it in production. Codama’s official renderers are well-tested, but if using a custom or community visitor, ensure the output does what you expect. For instance, double-check that the generated instruction functions are correctly sending transactions and not introducing vulnerabilities.
+* **On-chain IDL storage:** In the future, Codama plans to allow you to store IDLs on-chain. If you utilize that, remember that anything on-chain is public. Don’t include secrets or sensitive info in your IDL. Typically an IDL wouldn’t have that anyway (it’s just program interface), but it’s worth mentioning.
+* **Dev-only usage:** Codama (and especially the CLI) should be used as a dev dependency. There’s no need to include it in runtime code or browser bundles. This reduces any risk of shipping unnecessary code to production.
+
+In essence, treat Codama generation similarly to how you’d treat running a codegen tool or compiler – keep it in your toolchain, use trusted plugins, and verify outputs.
+
+## Recipes
+
+To solidify understanding, here are a few practical recipes using Codama. These are common tasks you might need when building Solana applications.
+
+### Recipe 1: Replacing Anchor’s Client with Codama + Solana Kit
+
+**Goal:** Use Codama to generate a TypeScript client for an Anchor program and call it using Solana Kit, instead of using the Anchor JS SDK.
+
+**Steps:**
+
+1. **Generate the client:** Ensure your Anchor program is built to have an IDL. Then run Codama to produce a client (as shown above). For example:
+
+   ```bash
+   pnpm codama init        # create codama.json pointing to anchor IDL
+   pnpm codama run js      # generate TS client in clients/js/src
+   ```
+
+   (Or use a script with `codama.accept(renderJavaScriptVisitor)` as we did.) Now you have functions for each instruction.
+
+2. **Set up Solana Kit (web3.js v2):** In your Node or frontend environment, install `@solana/kit` and related packages (`@solana/web3.js` v2 comes with it). Solana Kit uses an object called `Umi` for most operations.
+
+3. **Call an instruction using the Codama client:** For example, suppose your program has `initialize()` and it requires a PDA and a payer:
+
+   ```ts
+   import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
+   import { initialize } from './clients/js/src/instructions';
+   import { getMyProgramProgramId } from './clients/js/src/programId';
+
+   const umi = createUmi('http://localhost:8899'); // connection to local validator
+   // Optionally, set up identity:
+   // umi.use(keypairIdentity(someKeypair));
+
+   // Derive PDA if needed (Codama’s client provides a programId and maybe seed utils):
+   const programId = getMyProgramProgramId(umi);
+   const [pda] = umi.eddsa.findPda(programId, [/* seeds */]);
+
+   // Send the transaction using the generated method
+   await initialize(umi, { payer: umi.identity.publicKey, pda }).sendAndConfirm(umi);
+   console.log("Instruction executed!");
+   ```
+
+   The generated `initialize` function encapsulates building the transaction for that instruction. Notice we pass the `umi` instance and the accounts. It returns an object that we can call `.sendAndConfirm(umi)` on, which under the hood uses Solana Kit’s transaction handling.
+
+**Gotchas:**
+
+* Make sure your local Solana validator is running if testing locally (use `solana-test-validator` or run `anchor test --detach` to spin one up).
+* The generated client functions expect the correct accounts. Codama doesn’t automatically resolve PDAs or associated token accounts for you (at least not in current version). You must compute PDAs (as shown using `findPda`) and provide them. This gives you control and clarity.
+* **Wallet adapters:** In a frontend, instead of `createUmi` with a URL, you’d integrate with wallet adapters (e.g. `@solana/react` for connecting Phantom, as suggested by Codama’s README). The Codama client can accept a `umi` that has a wallet plugged in.
+
+**Outcome:** You’ve replaced the Anchor client (`Program` object) with Codama’s generated functions and Solana Kit’s connection. This yields a more modular approach and compatibility with new Solana APIs.
+
+### Recipe 2: Generating a Rust Client SDK
+
+**Goal:** Create a Rust library to interact with your Solana program without using the program’s crate or Anchor macros.
+
+**Steps:**
+
+1. **Generate Rust code:** In your Codama config or script, include the Rust renderer. For instance:
+
+   ```js
+   codama.accept(renderRustVisitor('clients/rust/src/generated', {}));
+   ```
+
+   This will produce Rust source files under `clients/rust/src/generated`. Alternatively, via CLI config:
+
+   ```json
+   "scripts": { 
+     "rust": [ { "from": "@codama/renderers-rust", "args": ["clients/rust/src/generated"] } ]
+   }
+   ```
+
+   Run `codama run rust`.
+
+2. **Review the output:** Codama will generate Rust modules for your instructions, accounts, etc. Typically it creates a `lib.rs` or module files containing functions to build each instruction (similar to Anchor’s `#[derive(Accounts)]` mechanism but all in generated code). It may also include a struct for each instruction’s arguments.
+
+3. **Use the Rust SDK:** You can include this in a Rust project (for example, if you have an off-chain service in Rust or for integration tests). For instance:
+
+   ```rust
+   use my_program_generated::instructions::initialize;
+   // Assuming my_program_generated is the crate name or module path you set up.
+   let tx = initialize(payer_pubkey, pda_pubkey, /* other args */);
+   // This tx might be an object that you can then sign and send via a solana-client or similar.
+   ```
+
+   The exact API depends on how Codama’s Rust visitor structures it. Codama’s README notes that the Rust client removes the need to publish the on-chain program crate and offers a better dev experience. That implies the generated code is standalone, likely using `solana_program::instruction::Instruction` structs under the hood to represent each call.
+
+**Gotchas:**
+
+* Ensure the output directory is part of a Rust crate. You might have to set up a `Cargo.toml` in `clients/rust` and include the generated files. Codama won’t do the Cargo setup for you.
+* The generated Rust code will include a note that it’s auto-generated. Do not edit it manually; if you need changes, adjust your IDL or write a visitor to alter the output.
+* Keep the generated Rust client updated whenever your program changes (as you would with TS). Automate the generation as part of your build or release process.
+
+**Outcome:** You have a Rust library for your program calls. This is useful if you want to interact with your program from a Rust server or even integrate with other Rust projects without pulling in the entire program crate (which might have borsh serialization and other heavy deps). It’s a lighter-weight client.
+
+### Recipe 3: Filtering IDL to Only Include Certain Instructions
+
+**Goal:** Generate a client that only includes a subset of instructions (perhaps to reduce bundle size or expose a limited interface).
+
+**Scenario:** Let’s say your program has 10 instructions, but your frontend dApp only ever needs 3 of them. You can use a Codama visitor to strip out the others before generation.
+
+**Steps:**
+
+1. **Write a filter visitor:** Create a file `filter-idl.js`:
+
+   ```js
+   module.exports = {
+     visitInstruction(node, ctx) {
+       const name = node.name;
+       // List of allowed instruction names
+       const allowed = ["initialize", "setData", "updateConfig"];
+       if (!allowed.includes(name)) {
+         // Remove this instruction node from the tree:
+         ctx.removeNode();  // assuming Codama's visitor API supports this
+       }
+     }
+   };
+   ```
+
+   This is a simple visitor that, when visiting each `InstructionNode`, will remove it if it’s not in the allowed list. (Here we assume a context method `removeNode()` exists; if not, one could mark nodes for deletion and use a specialized deleteNodesVisitor. Codama provides something like `deleteNodesVisitor` in docs.)
+
+2. **Include in Codama config:**
+
+   ```json
+   "before": [ "./filter-idl.js" ],
+   "scripts": { "js": [ { "from": "@codama/renderers-js", "args": ["clients/js/src/minimal"] } ] }
+   ```
+
+   Now running `codama run js` will first run our filter on the IDL, removing unwanted instructions, then generate the JS client with only the remaining ones.
+
+3. **Generate and use:** After generation, the `clients/js/src/minimal` should contain code for only the 3 instructions we care about. Use those in your app. The other program instructions are effectively hidden – if you try to call a removed one, you won’t have a function for it, which is the intention.
+
+**Gotchas:**
+
+* If some of the removed instructions share accounts or types with the kept ones, those account types might still appear in the IDL. This could lead to extra code still being generated (unused accounts). You might need a more sophisticated filter that also prunes unused account types or events.
+* The Codama API might not directly allow node removal via `ctx.removeNode()`. If not, you could manually filter the array of instructions on the ProgramNode in a custom step. (This is a bit hacky; future Codama versions or utilities may make this easier.)
+* Always verify that the pruned client still compiles and runs. You have essentially created a custom IDL subset – ensure no references to removed items linger.
+
+**Outcome:** A tailored client SDK focusing only on what your application needs. This can reduce bundle size and surface area. It also illustrates Codama’s flexibility: you’re not stuck with the full Anchor IDL if you don’t want it; you can transform it as needed before codegen.
+
+### Recipe 4: Using Codama in Continuous Integration
+
+**Goal:** Ensure that whenever your Solana program changes, the client code is updated and no drift occurs between them.
+
+**Approach:** Integrate Codama into your CI pipeline (GitHub Actions, etc.) and possibly add a test to catch mismatches.
+
+**Steps:**
+
+1. **Automate generation in CI:** If you use GitHub Actions, you could add a step in your workflow (after building the program):
+
+   ```yaml
+   - name: Generate Codama client
+     run: pnpm install && pnpm codama run --all
+   - name: Commit updated client
+     run: |
+       if [ -n "$(git status --porcelain clients/)" ]; then
+         git config user.name "CI Bot"
+         git config user.email "ci-bot@example.com"
+         git add clients/
+         git commit -m "Update Codama client [ci skip]"
+       fi
+   ```
+
+   This example checks if any files in `clients/` changed after running Codama, and if so, commits them. (You might push to a branch or require a manual commit; auto-committing from CI is optional and should be done carefully).
+
+2. **Add a verification test:** As an extra guard, you can write a simple test that loads your IDL and ensures the generated client matches it. For instance, in a Jest test:
+
+   ```ts
+   import idl from '../target/idl/my_program.json';
+   import { PROGRAM_ID } from '../clients/js/src/programId';  // assume generated constant
+   test('Program ID matches IDL', () => {
+     expect(PROGRAM_ID.toString()).toBe(idl.metadata.address);
+   });
+   ```
+
+   Or test that each instruction function exists:
+
+   ```ts
+   import * as instructions from '../clients/js/src/instructions';
+   for (const ix of idl.instructions) {
+     it(`has generated function for ${ix.name}`, () => {
+       expect(typeof (instructions as any)[ix.name]).toBe('function');
+     });
+   }
+   ```
+
+   This dynamically checks that for each instruction name in the IDL, there’s a function exported in the generated `instructions` module. If someone forgot to run Codama after adding a new instruction, this test would fail.
+
+3. **Run tests in CI:** Ensure your CI runs the above test *after* generation. If generation isn’t run, these tests would catch it by failing.
+
+**Gotchas:**
+
+* The CI must have the Anchor build step to produce a current IDL. Without an updated IDL, Codama will regenerate the old info. So align the steps: Anchor build → Codama generate → tests.
+* If your codama generation is non-deterministic (it shouldn’t be, but just in case ordering changes or timestamps in output), the diff check might flag false changes. Usually, Codama’s output is deterministic given the same IDL.
+* Decide whether to commit generated code. Some prefer to commit it (so that consumers of the repo or package don’t need Codama to use the code). Others treat it like a build artifact. The above CI step shows one strategy (auto-commit). Alternatively, you could .gitignore the generated code and regenerate on each consumer side, but that requires everyone to run Codama – not ideal for ease of use.
+
+**Outcome:** By including Codama in CI and possibly some tests, you ensure your client libraries stay in sync with your program. This prevents those “it compiled but the client is calling a missing instruction” issues.
+
+## Error Handling & Troubleshooting
+
+Despite Codama’s simplicity, you might encounter some hiccups. Here are common issues and how to address them:
+
+* **“Unable to find IDL file” / IDL path issues:** If `codama init` or your script can’t locate the IDL, double-check the path in config. It should point to the JSON file. If using CLI, the path in `codama.json` is relative to the config file location. Ensure the file exists (run `anchor build` to generate it if using Anchor). If you moved the IDL, update the config.
+* **No output generated / empty `generated` folder:** Make sure you ran the correct script name. Running `codama run` with no args only runs `before` visitors (and if none, it will do nothing). Use `codama run <script>` matching a key in your config (e.g. `js`). Also verify that you installed the corresponding visitor package – e.g. if you refer to `@codama/renderers-js` in config but didn’t install it, the CLI can’t import it (it might throw a module not found error).
+* **Errors when running generated code:**
+
+  * If you see **“TypeError: Cannot read property ‘sendAndConfirm’ of undefined”** or similar, it might mean you forgot to pass the `umi` (or Solana connection object) correctly to the generated function. Recall that `initialize(umi, args)` returns an object with `sendAndConfirm` method – you must call it with the same umi instance.
+  * If you get **“No TransactionSendingSigner was identified”** (a Solana Kit error), it means no signer was attached to the Umi instance for sending transactions. Use `umi.use(keypairIdentity(signer))` to set an identity (or in browser, ensure wallet connected) before calling instructions.
+* **Anchor simulation differences:** If an instruction fails when using the Codama client but works in Anchor tests, check that you are setting all accounts properly. The Anchor client might automatically find Associated Token Accounts or PDAs for you in some cases; Codama’s generated code typically expects you to provide all accounts explicitly. For example, if an instruction uses an associated token account, you need to compute and supply it. There was a community question about auto-resolving PDAs/ATAs via Codama – as of now, you handle that logic yourself.
+* **TypeScript compilation errors in generated code:** Codama’s output is generally well-typed. If you see errors, it could be due to TypeScript config. Ensure `skipLibCheck` is true if you encounter any minor issues in Codama’s d.ts files (rare). More commonly, if you didn’t enable `esModuleInterop` or `resolveJsonModule`, your own code (importing JSON or using `import {something} from 'codama'`) might error. Adjust your tsconfig accordingly (Target ES2020+ for BigInt if needed, etc., since Solana Kit uses modern features).
+* **Next.js / Vite module issues:** If you import the generated client in a Next.js app and get a runtime error about module resolution (e.g. “Must use import to load ES Module” or similar), it might be due to mixing ESM/CJS. The generated files are ESM (with `import/export` syntax). Next.js handles ESM fine, but ensure that any library (like `@solana/kit`) is also ESM compatible or properly transpiled. In general, there’s no special config needed for Next with Codama outputs.
+* **Out-of-date client code:** If you forget to regenerate after changing your program, you might call an instruction that doesn’t exist or miss a field in an account struct. Symptoms include runtime errors from Solana (e.g. `Program log: AnchorError: AccountDidNotDeserialize` if account layouts changed). The fix is to rebuild the program, regenerate the IDL and client, and redeploy if necessary. To avoid this, use the CI strategies discussed or a pre-commit hook to run Codama.
+* **Codama CLI not found:** If `pnpm codama` says command not found, ensure you added `@codama/cli` to devDependencies and that you’re using the package manager’s exec correctly. With npm, `npx codama init` can be used. With pnpm, it’s `pnpm dlx codama@latest init` for a one-off, or if installed, `pnpm codama`.
+* **Visitor not a function or default export issues:** If you see errors like “TypeError: visitor is not a function” or similar when running, check how you imported it in config. For local files, if you wrote `module.exports = myVisitor`, then using the string path will get that export. If you did a named export, use the `#exportName` syntax. For package visitors, ensure you put `#default` if the package’s default export is the visitor (though if default, just the package name is fine). These import strings can be tricky – refer back to examples.
+* **Git conflicts in generated files:** If multiple branches modify the program and run Codama, you might get large diffs or merge conflicts in the output. The best practice is to regenerate from source rather than manually merging client code. If a conflict arises, prefer to take the version generated from the latest IDL. You can also add comments like `// @@codama` to mark sections, but that’s not built-in. Using consistent formatting (Codama usually formats its output) helps minimize diff noise.
+* **Miscellaneous:** For any error stack traces pointing to Codama internals, consider raising an issue on the GitHub. The project is active and community-driven (numerous contributors). There’s also a Solana Stack Exchange tag for Codama where the community, including the author, answers questions.
+
+**Debugging tips:** You can always add `console.log` inside a local visitor to see what’s happening (e.g. log node names as they are visited). Since Codama doesn’t have a verbose mode flag currently, this manual logging or using a debugger on your script is the way to inspect the process.
+
+In summary, most troubles boil down to **path issues, version mismatches, or forgetting a step**. Double-check each piece (IDL generation, config, visitors installed, usage of output) when things go wrong.
+
+## Testing Examples
+
+Testing your Solana program with Codama is quite enjoyable because you can use the generated client in your tests. Let’s look at how to write tests using Codama’s output, using Jest as an example (the approach is similar in other frameworks like Mocha or Vitest).
+
+**Example: Integration test with local validator**
+
+Suppose we have a simple Anchor program that we’ve generated a Codama client for. We want to test an instruction end-to-end.
+
+First, ensure a local Solana test validator is running. The easiest way: in one terminal, run:
+
+```bash
+anchor test --detach
+```
+
+This will build and deploy your program to a local validator and leave it running in the background. The program’s IDL and Codama client should be up-to-date at this point (Anchor’s tests compile the program, and we assume Codama generation has run as part of the build or manually).
+
+Now, in a Jest test file (e.g. `myProgram.e2e.test.ts`):
+
+```ts
+import { generateSigner, keypairIdentity, sol } from '@metaplex-foundation/umi';
+import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
+import { initialize, setData } from '../clients/js/src/instructions';
+import { getMyProgramProgramId } from '../clients/js/src/programs/myProgram';
+
+describe('MyProgram', () => {
+  const umi = createUmi('http://127.0.0.1:8899', { commitment: 'confirmed' });
+  const creator = generateSigner(umi);
+  umi.use(keypairIdentity(creator));
+
+  // Derive PDA for the program account we will initialize
+  const programId = getMyProgramProgramId(umi);
+  const pda = umi.eddsa.findPda(programId, [
+    umi.serializer.string({ size: 'variable' }).serialize('example'), 
+    umi.serializer.publicKey().serialize(creator.publicKey)
+  ]);
+
+  beforeAll(async () => {
+    // Airdrop SOL to the test signer for fees
+    await umi.rpc.airdrop(creator.publicKey, sol(1));
+  });
+
+  it('initializes a new account', async () => {
+    await initialize(umi, { payer: creator, pda }).sendAndConfirm(umi);
+    // After this, the PDA account should be created. We can fetch it to verify.
+    const accountInfo = await umi.rpc.getAccount(pda);
+    expect(accountInfo).not.toBeNull();
+    // Optionally, decode data and assert initial state if needed.
+  });
+
+  it('sets data on the account', async () => {
+    await setData(umi, { authority: creator, pda, data: 42 }).sendAndConfirm(umi);
+    // Assuming setData instruction writes a value to the account
+    const accountData = await umi.rpc.getAccount(pda);
+    // decode accountData using the generated account deserializer if available
+    // For example, if Codama generated a decoder for ExampleAccount:
+    // const example = deserializeExampleAccount(accountData.data);
+    // expect(example.data).toBe(42);
+    expect(accountData?.data).toBeDefined(); // placeholder assertion
+  });
+});
+```
+
+In the above test:
+
+* We set up an `umi` instance connecting to the local validator, and we generate a signer (keypair) for testing.
+* We use the generated client functions `initialize` and `setData` directly in the tests, just as our application code would. This is much like Anchor’s mocha tests, but we’re using the Codama/Kit style instead.
+* We airdrop SOL to our test keypair in a `beforeAll`, ensuring we have funds to pay for transactions.
+* After calling `initialize`, we fetch the account info to confirm it was created. We could also use any generated account decoder to parse the account if Codama provides one (often it does generate schema for accounts).
+* Then we call `setData` and verify that the data changed (in a real test, decode and check the field value).
+
+**Running the test:** Use `anchor test --detach` to keep validator running, then `npm test` or `jest` to run the Jest tests. The anchor workspace and Codama client work hand-in-hand: Anchor took care of deploying the program to the local cluster, Codama provides the client to interact with it.
+
+**Mocking and unit tests:** If you want to unit test logic around Codama without hitting a network, you could mock the `umi` object or functions. For example, you might mock `umi.rpc.sendAndConfirm` to simulate transaction sends. However, since Codama’s generated functions are fairly thin wrappers around building transactions, there’s often not much to unit test in them – it’s more valuable to do integration tests like above.
+
+**Testing custom visitors:** If you wrote a custom visitor that transforms the IDL, you can test that in isolation by creating a small sample IDL object and running the visitor on it. For example:
+
+```ts
+import { createFromRoot, Codama } from 'codama';
+import { SomeVisitor } from '../scripts/myCustomVisitor';
+test('myCustomVisitor removes internal types', () => {
+  const sampleIdl = {/* ... minimal IDL with an internal type ... */};
+  const codama = createFromRoot(rootNodeFromAnchor(sampleIdl));
+  codama.accept(new SomeVisitor());
+  // Assert that codama.idl (or codama.getRootNode()) no longer contains the internal type
+});
+```
+
+This is more advanced and typically not needed unless you heavily customize Codama.
+
+**Summary:** You can treat the Codama-generated client as a first-class citizen in your tests. It improves test readability (no need to manually construct transactions) and ensures your client code is correct by testing it against a real program. Many Solana projects using Codama will have their Jest tests look very similar to traditional Anchor tests, just with a different import at the top (Codama’s client instead of Anchor’s `Program` object).
+
+## TypeScript Notes
+
+Codama is built in TypeScript and provides **built-in type declarations** for all its packages. This means as a TypeScript user you get full IntelliSense and type safety when using Codama functions and classes. Some notes on using Codama with TypeScript:
+
+* **Types included:** The npm package `codama` comes with `.d.ts` files, so you don’t need any `@types/codama`. For the scoped packages (like `@codama/renderers` etc.), types are also included in them. You’ll notice the TypeScript icon on their npm pages indicating this.
+
+* **IDL JSON types:** When dealing with an Anchor IDL JSON, you might want to type it. Codama provides an `AnchorIdl` type in `@codama/nodes-from-anchor` which you can use as shown earlier (`anchorIdl as AnchorIdl`). This ensures the JSON conforms to what the converter expects. Similarly, if you have a Codama IDL JSON, there might be a type for that (perhaps in `@codama/node-types`) but more commonly you’ll use the node classes.
+
+* **Generic types for visitors:** The visitor system in Codama uses generics to ensure type safety. For instance, the base `Visitor<Ctx, NodeType>` type might be something like `Visitor<C, K extends NodeKind>`. If you write a visitor in TS, you can specify which node type(s) it targets. Example:
+
+  ```ts
+  class MyVisitor implements Visitor<null, 'instructionNode'> {
+    visitInstruction(node: InstructionNode) { ... }
+  }
+  ```
+
+  This way, you know the `node` is an `InstructionNode` and can access its properties with proper types. The `'instructionNode'` string refers to the kind of node in Codama’s internal union of node types.
+
+* **Augmenting types / extending IDL:** If you plan to extend Codama (e.g. adding custom properties to nodes or creating new node types), you’d have to extend the classes at runtime (which is complex) or maintain a fork. There isn’t a simple way to augment the existing Node definitions with extra fields via declaration merging, because they are classes not interfaces. A more supported way to add metadata is to use what’s already provided (for example, maybe Codama nodes have a `.docs` field or `.metadata` map you can populate). Check the `@codama/nodes` documentation for any extensibility points.
+
+* **Using Codama’s types in your code:** If you want to, say, type a function parameter as “Codama IDL of my program”, you could use something like `RootNode` type. E.g. `function foo(root: RootNode): void { ... }`. Import `RootNode` from `@codama/node-types` which likely exports all the node interfaces. However, keep in mind the `RootNode` will be parameterized by the program type in some way. In most cases, you won’t need to explicitly type the nodes in application code – you use them through the visitors.
+
+* **Generated client types:** The code that Codama generates is also typed (if you generate a TS client). For example, each instruction function will have a TypeScript signature reflecting the accounts and args it needs. The account objects and other structures will have interfaces or types defined. This is a big advantage over manually writing RPC calls – you get compile-time checking that you provided all required accounts and the right types of data. If you open the generated `.ts` files, you’ll see these definitions. You might see some advanced types or template usage, but generally, they should be straightforward to use. If something is unclear (like a generic `TransactionBuilder<someType>` from Umi), refer to Solana Kit/Umi docs for those types.
+
+* **Suppressing type errors for generated code:** If your linter or TS config complains about the generated files (perhaps if you treat warnings as errors), you have a few options:
+
+  * Adjust tsconfig to exclude the generated directory from strict checks (not usually necessary).
+  * Add `// @ts-nocheck` at the top of generated files (Codama doesn’t do this by default since it wants the code to type-check, but you could configure your own post-process if needed).
+  * Fix the root cause: e.g., if a generated file imports something your TS can’t find, make sure you installed the needed package or types.
+
+In practice, Codama’s type support is one of its selling points – you get all the same strong typing for instructions that you would in Anchor’s TypeScript, but now aligned with Solana Kit’s types. For instance, the PDA derivation in Umi uses a `Serializer` for seeds, which is typed; Codama’s integration likely provides those serializer types for you (as seen in the example where `umi.serializer.string()` was used with proper type inference).
+
+**In summary:** Enjoy the rich types Codama provides. You should rarely have to `any` cast anything when using the client. The only slight complexity is if you dive into writing custom visitors – then you’ll juggle generic visitor types, but the provided `@codama/visitors-core` definitely has those types ready to import. And if all else fails, community forums or the Codama documentation can help clarify specific type usage.
+
+## Deployment & Production
+
+Codama primarily affects your development process, but it has implications for your production deployment insofar as the **generated code** becomes part of your application or library.
+
+**Bundle size and tree-shaking:** The TypeScript client generated by Codama can be considered your “SDK” for the program. If you include all of it in a web app, it will increase your bundle size roughly in proportion to the number of instructions and accounts (because it generates code for each). For example, a program with 5 instructions and 3 account types might produce, say, 10-20KB of unminified JS. This is usually not a concern, but for very large protocols with dozens of instructions, be mindful. The good news: since the client is modular (each instruction is a separate exported function), modern bundlers *will tree-shake* any unused ones if you don’t import them. So, if your app only uses 3 out of 10 instructions, and you only import those, the others can be dropped. Ensure that the module structure is preserved (don’t forcibly import everything if you don’t need to).
+
+If you are publishing a package (say, an NPM package of your program’s client) generated by Codama, consider using a bundler or tsup to output it in a consumption-friendly way (maybe providing both CJS and ESM builds, although since Codama outputs ESM, you could just publish the ESM TS and let users transpile).
+
+**Server-side rendering (SSR):** Using the Codama client in an SSR context (like Next.js getServerSideProps or in a server route) is fine. It’s just code that calls Solana RPC. One thing to note: if you attempt to use the client in a serverless/edge function environment, ensure the Solana RPC library (Kit or Umi) supports it. Umi, for example, can work in edge to some extent (since it can use fetch under the hood). There’s nothing specifically in Codama output that would break SSR – no browser-specific APIs except those in Solana libraries, which have server fallbacks.
+
+**Production deployment:** If your application uses the Codama-generated client on the frontend, treat it as you would any third-party library: include it in your build, monitor size, etc. The code is plain TS/JS, so it doesn’t need any special handling in CI/CD. Just make sure the generation step has been done *before* you build/deploy your app. It’s common to add a step in your Dockerfile or build pipeline like `npm run generate-client && npm run build`. Forgetting to do so could mean you deploy an app with outdated client code.
+
+**CI/CD checks:** Aside from generating in CI as mentioned, you might incorporate a lint or type-check on the IDL consistency. For example, some teams might keep a copy of the Codama IDL JSON and ensure it’s updated. However, typically the source of truth is your Anchor program code; as long as you build and get a new IDL, Codama output will follow.
+
+**Linting and formatting:** Codama’s generated code might not exactly match your project’s ESLint or Prettier rules. You have options:
+
+* Run a formatter on the generated files as part of generation (e.g. have your script call Prettier on `clients/js/src` after generation).
+* Or exclude the generated folder from linting (many teams do this, treating it like build artifacts).
+* Codama’s code style is generally reasonable, but you might see minor differences (e.g. maybe it uses 2 spaces and your project uses 4, etc.).
+
+**Secrets and environment:** The Codama process itself doesn’t involve secrets. But when using the client, you might have private keys or RPC endpoints. Manage those as you normally would (environment variables for RPC URLs, key management for signing). The Codama guide doesn’t change that, except that you’ll use `umi` or Kit instead of Anchor’s provider.
+
+**Edge cases in production:** If deploying a client in a browser extension or very constrained environment, note that Solana Kit (web3.js v2) is still new and may have some different performance characteristics. This is more about Solana Kit than Codama, but since Codama ties you to those libs, it’s relevant. Always test your final bundle on target devices.
+
+Finally, consider whether you want to **publish your Codama-generated client as a package** for others. Some developers of popular Solana programs generate a client and publish it on NPM for easy consumption (so users don’t need to generate it themselves). If doing so, follow best practices: include the README or docs on how to use it, bump the version when the program changes, and possibly use Codama’s ability to embed the program ID in the code (`getProgramId` is usually provided).
+
+**Takeaway:** Treat the Codama output as part of your source for the app. Generate it before production build, keep it updated, and be mindful of its size in the bundle. Codama itself doesn’t run in production, so after build there’s no Codama overhead – just your program client performing as expected.
+
+## Versioning, Upgrades & Changelog
+
+Codama is under active development but adheres to semantic versioning:
+
+* **SemVer policy:** Major version 1 indicates that the package has reached a level of stability. Minor (`1.x`) releases add features and possibly *backwards-compatible* changes, while patches (`1.x.y`) are bug fixes. If a breaking change is introduced, expect a major version bump (to 2.0). For example, the rename from Kinobi to Codama effectively was a breaking shift from 0.x to 1.0. Since then, updates like 1.1, 1.2, 1.3 have come out with new features but not breaking the core API.
+
+* **Tracking changes:** See the GitHub [Releases](https://github.com/codama-idl/codama/releases) page for a log of changes. Each release (often automated via changesets) lists what changed in each package. For instance, a release entry for `codama@1.2.13` shows updated dependencies, and new features would be listed as **Minor Changes** or **Major Changes** if any. Also, check the commit tags – e.g., `codama@1.3.0` would have a corresponding tag. If you skip versions, read through the release notes of intermediate versions.
+
+* **Upgrading from Anchor client to Codama (one-time):** If you’re coming from using `@coral-xyz/anchor` client, the “upgrade” is not an in-place version bump but a migration to a different library. The Codama README and Solana community have resources on this. Key differences: you’ll replace `program.rpc.methodName()` calls with Codama’s generated functions, and use Solana Kit’s connection instead of Anchor’s Provider. This is more of a migration guide issue than a version upgrade, but worth noting.
+
+* **Upgrading Codama itself:** From 1.x to 1.y (minor), generally just update the package versions. Check if any config changes are needed. For example, if a new version introduced a new visitor or changed option names, the changelog will mention it. It’s wise to regenerate your clients after upgrading Codama and run your tests to ensure everything still passes.
+
+* **Breaking changes in latest major:** The jump from 0.x (Kinobi) to 1.x (Codama) was a rename and repackaging. If anyone used Kinobi: package names changed (e.g. `@kinobi-so/renderers` became `@codama/renderers`), and some API improvements were made. Within the 1.x series, no significant breaks have been reported as of 1.3. The developers prioritize backward compatibility in config and usage, focusing on adding features like CLI, new visitors, etc., in a compatible way.
+
+* **Migration tips:**
+
+  * When Codama introduced the CLI, if you were using manual scripts you could keep using them – the CLI was an additive tool.
+  * If Codama introduces the Rust macros (in future 1.x or 2.0), integrating those would be a new way to produce IDLs but shouldn’t break existing flows.
+  * One thing to watch is compatibility with Anchor versions: as Anchor evolves (like the `AccountDiscriminator` changes in Anchor 0.26), Codama might update its conversion logic. Ensure your `@codama/nodes-from-anchor` version aligns with the Anchor version you use. The package description implies it handles various versions already.
+
+For a detailed history, refer to the [CHANGELOG](https://github.com/codama-idl/codama/releases) (GitHub Releases). For example:
+
+* *1.3.0 (July 2025)*: Introduced improvements for Gill integration and Umi renderer enhancements (hypothetical example based on context).
+* *1.2.0:* Possibly the release of the CLI and initial Solana Kit support.
+* *1.1.0:* Minor features, maybe new visitors or bug fixes.
+* *1.0.0 (Jan 2025)*: First Codama release (post-Kinobi rename) – baseline.
+
+When upgrading, it’s good practice to:
+
+1. Read release notes.
+2. Upgrade the packages.
+3. Re-run `codama init` (if they added new config fields, though they’d likely mention if required) or adjust your existing `codama.json` according to any new keys.
+4. Regenerate clients and run tests.
+
+**Note:** If Codama’s own version doesn’t bump but underlying Solana libraries do (e.g. Solana Kit vX or Umi vY), you might need to adapt how you use the generated client because the ecosystem changed, not Codama. For instance, Solana Kit might deprecate a function that Codama’s generated code calls – Codama would then release an update to adjust. So keep Codama updated alongside major Solana ecosystem updates.
+
+In essence, Codama has been evolving in tandem with Solana tooling. Keep an eye on their GitHub for any announcements of breaking changes. They also actively respond on forums and Discord, so you can get migration help if something changes significantly.
+
+## Alternatives & Trade-offs
+
+Codama is a powerful tool, but it’s not the only way to generate or use Solana program clients. Here are a few alternatives and when you might consider them:
+
+* **Anchor’s Native TypeScript SDK (`@coral-xyz/anchor`):** This is the client that Anchor itself generates (in `target/types/` and the Anchor npm package). *When to choose:* If you are sticking with web3.js v1 and the classic Anchor workflow for now. It’s battle-tested and straightforward for Anchor users. *Trade-off:* It won’t work with Solana Kit (web3.js v2) and is effectively frozen in capabilities. Codama + Solana Kit is the forward-looking path.
+
+* **Metaplex Solita:** Solita is a code generator that takes an Anchor (or Shank) IDL and produces a TypeScript SDK (similar to Codama’s TS output). *When to choose:* If you want a minimal, low-level SDK and don’t need the visitor extensibility. It’s a simpler generator and was commonly used before Codama. *Trade-off:* It generates clients tied to web3.js v1 by default (though it could be adapted). It lacks Codama’s flexible visitor architecture and ecosystem of plugins – basically, Solita is for client code only, whereas Codama aims to be a full platform (clients, docs, CLI, etc.). If you’ve already integrated Solita and it meets your needs, you might not need Codama’s complexity. But new projects leaning toward Solana Kit would benefit more from Codama.
+
+* **Manual use of `@solana/web3.js` or **Solana Kit**:** You can always write manual wrappers or use raw RPC calls. *When to choose:* For very simple scenarios or when you need complete custom control. For example, if your program has 1-2 instructions, writing a small util function with `TransactionInstruction` might be quicker than setting up Codama. *Trade-off:* You lose the automatic syncing of interface – any program change you must reflect manually. This approach doesn’t scale well beyond trivial cases. Codama automates the boilerplate that manual web3 usage would require for larger programs.
+
+* **Shank + Custom Codegen:** Some projects using Shank (a Rust crate for defining instruction interfaces) wrote their own scripts or used smaller tools to generate clients. *When to choose:* Rarely necessary now – Codama can work with Shank IDLs and you might as well use Codama unless you have a very custom requirement. The trade-off of a custom solution is maintenance burden.
+
+In summary, **Anchor’s built-in client** is the main alternative if you’re not ready to move to the new stack, and **Solita** is an alternative codegen for TS if you prefer a simpler approach or different output style. Codama’s advantage is its rich feature set and compatibility with Solana’s evolving ecosystem (Kit/Umi). The trade-off is a slightly higher learning curve and more moving parts (multiple packages, config, etc.). For most, the benefits outweigh the complexity, especially for medium-to-large projects.
+
+## FAQ
+
+**Q1: Do I need Anchor to use Codama?**
+**A:** Not necessarily. While Codama was built with Anchor in mind, it can work with any Solana program as long as you provide a Codama-compatible IDL. If you’re not using Anchor, you have a few options: manually write an IDL JSON matching Codama’s schema, use Shank macros to generate an Anchor-style IDL, or (in the near future) use Codama’s Rust macros. In short, Anchor is the easiest way to get an IDL right now, but Codama itself is independent of Anchor – it’s a standard format that Anchor IDL can be converted into.
+
+**Q2: What’s the difference between an Anchor IDL and a Codama IDL?**
+**A:** An Anchor IDL is a JSON that describes your program’s instructions, accounts, types, and errors, but it has some limitations (for example, it might not capture all relationships or certain type info). A Codama IDL is a more **expressive superset** format encapsulated as a tree of nodes. Codama IDL can hold everything an Anchor IDL does and more – e.g., nested type information, richer metadata, future-proofing for new constructs. Practically, you can convert Anchor IDL -> Codama IDL easily. Going the other way (Codama -> Anchor) would lose information if you’ve added extra details. Think of Codama IDL as “Anchor IDL on steroids.”
+
+**Q3: Is Codama production-ready?**
+**A:** Yes, Codama reached 1.x and is used in real projects (the GitHub shows many dependent repositories). The core functionality (generating TS clients and Rust clients) is stable. The project is actively maintained (frequent releases and issue resolutions). Keep in mind some features are marked as not yet available (CLI generation, docs generation), but that doesn’t affect the stability of what *is* released. Many developers are already using Codama-generated clients in production web apps and backends. Just follow best practices: pin versions, run your tests after generation, and you should be good.
+
+**Q4: How do I update the client when my program changes?**
+**A:** After you make changes to your Solana program (in Rust), you’ll rebuild it (if using Anchor, `anchor build` will create a new JSON IDL). Then you should re-run Codama to regenerate the client code. It’s wise to script this (e.g. a `generate-client` npm script). The diff should reflect your program changes. For example, if you added a new instruction, a new function will appear in the generated TypeScript. If you changed a struct, the corresponding account type interface in the client will update. Commit these changes alongside your program code changes so they stay in sync. Essentially, treat the Codama outputs like compiled artifacts that need refreshing on code changes.
+
+**Q5: Can Codama generate code for multiple programs in one go?**
+**A:** Yes. You could either have multiple scripts in one `codama.json`, each pointing to a different IDL, or simply run Codama separately for each program. Currently, a single Codama instance works with one IDL (one program) at a time, but you can certainly automate generating clients for, say, 3 different programs. If those programs are related (e.g. a suite of programs), you might generate all their clients and then combine the outputs in a single SDK package. Codama doesn’t yet have an aggregate feature for multiple IDLs in one run – you’d do it via multiple runs or a script loop.
+
+**Q6: What if I only want a client and not the entire Solana Kit?**
+**A:** Codama’s JS client is built to use Solana Kit (or Umi). Solana Kit is a wrapper around `@solana/web3.js` v2 providing convenient APIs. If, for some reason, you don’t want to use Solana Kit at all, you could use the Umi renderer (which is a separate framework by Metaplex) or stick to Anchor’s client. However, using Codama’s output without Solana Kit would be difficult because the generated code expects certain Kit functionalities (like `umi.rpc.sendAndConfirm`). If you prefer not to adopt Solana Kit, Codama might not yield its full benefit for TS. In that case, the anchor client or Solita (which uses web3.js v1) might suit you better. That said, Solana Kit adoption is growing and is recommended by the Codama authors (they explicitly pair Codama client with Solana Kit in their docs).
+
+**Q7: How do I generate documentation from Codama?**
+**A:** As of now, documentation generation is a planned feature, not implemented. The idea is that a visitor could traverse the IDL and produce markdown or HTML docs. You could attempt a basic version: for instance, write a visitor that collects all instructions and their argument names/types and spit out a README. But there’s no official Codama visitor for docs yet. Keep an eye on the Codama repo or community plugins; once someone writes a `renderMarkdownDocsVisitor`, you could plug it in. Until then, you might still write docs manually or use the Anchor-generated IDL as input to a doc tool.
+
+**Q8: What is Gill and how does it relate to Codama?**
+**A:** **Gill** is another tool/framework in the Solana ecosystem (developed by Helius) aimed at improving the developer experience, especially around generating and managing clients. Gill actually uses Codama under the hood for its client generation. For example, the Gill docs show how to use Codama CLI within Gill’s flow. If you’re using Gill, you might not interact with Codama directly as much – Gill would call Codama for you. But understanding Codama helps if you need to customize something. In short, Gill is complementary; you can think of it as a higher-level tool that leverages Codama for the heavy lifting.
+
+**Q9: Can I register my IDL on-chain with Codama now?**
+**A:** Not yet. The Codama README describes a future feature where you can store your Codama IDL in a Solana account so that explorers or other apps can fetch it. This is analogous to how the Solana on-chain registry works for Anchor IDLs (where some programs post their IDL to a known account). Codama aims to standardize that for any program. As of the latest version, the on-chain registration is **“Coming soon”**. You can manually store your IDL if you want (upload it to Arweave or even to a Solana account you manage), but an official solution will likely arrive in a future release.
+
+**Q10: Who maintains Codama and how active is it?**
+**A:** Codama is primarily developed by Loris Leiva (known for his work on Anchor and Solana dev tooling) and is open-source under the codama-idl organization. It has multiple contributors and a decent amount of community usage. The project has nearly 300 stars on GitHub, indicating community interest. There’s an active issues page and new releases are frequent (sometimes multiple times a month, driven by the changeset automation). The license is MIT, so you can use it freely in your projects. The maintainers are responsive on GitHub and Solana forums. Overall, the project appears healthy and actively maintained, which bodes well for developers adopting it.
+
+Hopefully, these FAQs clear up any remaining questions. Codama introduces some new patterns (visitors, IDL trees) but after a short learning curve, it becomes a very handy part of your Solana development toolkit.
+
+## Appendix
+
+**Package.json Highlights for `codama`:**
+
+* **Name & Version:** `"name": "codama"`, latest version `1.3.1` (as of Aug 2025).
+* **Scope/Namespace:** It’s unscoped (published as `codama` on npm). Related packages use the `@codama/` scope.
+* **Exports:** The package uses an `"exports"` map to provide ESM and CJS entry points. This ensures `import 'codama'` works and Node picks the right file. Typically, `"main"` and `"module"` fields point to the compiled outputs in `dist/`.
+* **Types:** It likely has a `"types"` field, pointing to the bundled type declarations (e.g. `dist/index.d.ts`). We saw that types are included.
+* **Engines:** If specified, probably something like `"engines": { "node": ">=16.0.0" }` or similar. A snippet from another source indicated Node >= 20 for some package, but codama core might allow Node 16+. Regardless, using a modern Node is recommended.
+* **Peer Dependencies:** None for the core `codama` package. It lists its required sub-packages as regular dependencies (e.g., `@codama/nodes`, `@codama/visitors`, etc.), so when you install `codama`, those come along. The CLI package might have `codama` as a dependency or vice versa. The renderers are separate packages you install as needed.
+* **Binary:** `codama` package itself does **not** provide a CLI binary. The CLI functionality is in `@codama/cli` which defines a `bin` for the `codama` command. That’s why you install `@codama/cli` to get the command.
+* **SideEffects:** It’s not explicitly documented, but likely `"sideEffects": false` for the library packages, meaning they are pure (no global side effects when importing). The CLI package might perform actions on import (like parsing args), but generally one would run it as a command.
+
+**Monorepo structure:** The Codama GitHub is a monorepo containing multiple packages (cli, nodes, renderers, visitors, etc.). It uses **Changesets** for versioning multiple packages together. This ensures compatibility across them (e.g., all bumped to use the same node definitions). As a user, you usually don’t need to worry about mismatched versions as long as you update them in tandem (installing the latest codama will pull compatible versions of others).
+
+**Maintainers & Community:** The lead maintainer is **Loris Leiva** (GitHub: lorisleiva). The collaborators field on npm shows his username. With \~24 contributors listed on GitHub, Codama has input from various Solana developers. There’s engagement on Solana StackExchange (the “Codama” tag, where Loris and others answer questions) and the QuickNode guide and others indicate a growing community understanding. This means if you encounter issues, there are channels for support (GitHub issues, StackExchange, possibly a Discord in Solana channels).
+
+**License:** Codama is MIT licensed, a permissive license suitable for commercial and open-source use. There are no copyleft concerns – you can use Codama in your project freely. The generated code, being derived from your IDL (which is effectively your code’s interface), should also be considered under your project’s license. Codama doesn’t attach any additional license to generated output; it’s your code (and presumably also MIT-compatible). For safety, you could include a comment in generated files like “Generated by Codama from IDL – output is MIT licensed” or similar, but that’s up to you.
+
+**Compliance:** Because Codama deals with code generation, one could ask if it introduces any compliance/security issues. Generally, no – it doesn’t call external services, just reads local files and writes local files. Ensure the IDL input is from a trusted source (especially if you automate fetching an IDL URL, which currently you typically don’t, you use local JSON). Under the hood, Codama doesn’t embed telemetry or anything odd (being open source, this would be noticed).
+
+**Project health:** With frequent updates in mid-2025, Codama is keeping pace with Solana’s changes (like Solana Kit’s emergence). It’s not a legacy project; it’s the new approach recommended by core contributors for client generation. The existence of posts on dev.to and QuickNode, plus integration into Helius’s Gill, signals that Codama is becoming a standard.
+
+For any serious Solana development, understanding Codama is a good investment as it addresses a key pain point: keeping program interfaces in sync with client code. As the ecosystem evolves (on-chain IDLs, new frameworks), Codama is positioned to evolve with it. Enjoy building with Codama, and happy coding on Solana!
