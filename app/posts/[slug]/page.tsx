@@ -3,6 +3,8 @@ import { getPostBySlug, getAllPostSlugs } from "@/lib/mdx";
 import Link from "next/link";
 import { MDXContent } from "@/app/components/mdx-content";
 import { Metadata } from "next";
+import { Tag } from "@/app/components/tag";
+import Image from "next/image";
 
 interface PostPageProps {
   params: Promise<{ slug: string }>;
@@ -15,38 +17,41 @@ export async function generateStaticParams() {
   }));
 }
 
-export async function generateMetadata({ params }: PostPageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PostPageProps): Promise<Metadata> {
   const { slug } = await params;
   const post = getPostBySlug(slug);
 
   if (!post) {
     return {
-      title: 'Post Not Found',
-      description: 'The requested post could not be found.',
+      title: "Post Not Found",
+      description: "The requested post could not be found.",
     };
   }
 
   const { title, description, tags } = post.metadata;
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://cxalem.blog';
-  
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://cxalem.blog";
+
   // Create OG image URL with post data
   const ogImageUrl = new URL(`${baseUrl}/api/og`);
-  if (title) ogImageUrl.searchParams.set('title', title);
-  if (description) ogImageUrl.searchParams.set('description', description);
-  if (tags && tags.length > 0) ogImageUrl.searchParams.set('tags', tags.join(','));
+  if (title) ogImageUrl.searchParams.set("title", title);
+  if (description) ogImageUrl.searchParams.set("description", description);
+  if (tags && tags.length > 0)
+    ogImageUrl.searchParams.set("tags", tags.join(","));
 
   return {
     title: title ? `${title} | cxalem.blog` : `${slug} | cxalem.blog`,
     description: description || `Read about ${title || slug} on cxalem.blog`,
-    keywords: tags?.join(', '),
-    authors: [{ name: 'Alejandro', url: 'https://cxalem.blog' }],
-    creator: 'Alejandro',
-    publisher: 'cxalem.blog',
+    keywords: tags?.join(", "),
+    authors: [{ name: "Alejandro", url: "https://cxalem.blog" }],
+    creator: "Alejandro",
+    publisher: "cxalem.blog",
     openGraph: {
       title: title || slug,
       description: description || `Read about ${title || slug} on cxalem.blog`,
       url: `${baseUrl}/posts/${slug}`,
-      siteName: 'cxalem.blog',
+      siteName: "cxalem.blog",
       images: [
         {
           url: ogImageUrl.toString(),
@@ -55,15 +60,15 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
           alt: title || slug,
         },
       ],
-      locale: 'en_US',
-      type: 'article',
+      locale: "en_US",
+      type: "article",
     },
     twitter: {
-      card: 'summary_large_image',
+      card: "summary_large_image",
       title: title || slug,
       description: description || `Read about ${title || slug} on cxalem.blog`,
       images: [ogImageUrl.toString()],
-      creator: '@cxalem',
+      creator: "@cxalem",
     },
     robots: {
       index: true,
@@ -71,9 +76,9 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
       googleBot: {
         index: true,
         follow: true,
-        'max-video-preview': -1,
-        'max-image-preview': 'large',
-        'max-snippet': -1,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
       },
     },
   };
@@ -88,70 +93,82 @@ export default async function PostPage({ params }: PostPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-4xl mx-auto px-8 py-12">
-        {/* Navigation */}
+    <div className="min-h-screen bg-background">
+      <div className="max-w-5xl mx-auto px-8 py-12">
         <div className="mb-8">
           <Link
-            href="/"
-            className="inline-flex items-center text-blue-600 hover:text-blue-800 mb-4"
+            href="/posts"
+            className="inline-flex items-center text-neutral-600 dark:text-neutral-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors text-sm font-medium"
           >
-            ← Back to home
+            ← Back to posts
           </Link>
         </div>
 
-        {/* Post Header */}
-        <header className="mb-8">
-          {post.metadata.title && (
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              {post.metadata.title}
-            </h1>
-          )}
+        <div className="relative mb-12">
+          <div className="relative z-10">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              {post.metadata.date && (
+                <time
+                  dateTime={post.metadata.date}
+                  className="text-sm text-gray-500 dark:text-gray-400 flex-shrink-0"
+                >
+                  {new Date(post.metadata.date).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </time>
+              )}
 
-          <div className="flex items-center gap-4 text-gray-600 mb-6">
-            {post.metadata.date && (
-              <time dateTime={post.metadata.date}>
-                {new Date(post.metadata.date).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </time>
-            )}
-
-            {post.metadata.tags && post.metadata.tags.length > 0 && (
-              <div className="flex gap-2">
-                {post.metadata.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+              {post.metadata.tags && post.metadata.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 sm:justify-end">
+                  {post.metadata.tags.map((tag) => (
+                    <Tag key={tag}>{tag}</Tag>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-between relative">
+              <div>
+                {post.metadata.title && (
+                  <h1
+                    className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white uppercase tracking-wide mb-6"
+                    style={{ fontFamily: "var(--font-caryotype)" }}
                   >
-                    {tag}
-                  </span>
-                ))}
+                    {post.metadata.title}
+                  </h1>
+                )}
+                {post.metadata.description && (
+                  <p className="text-gray-600 dark:text-gray-300 leading-relaxed max-w-xl">
+                    {post.metadata.description}
+                  </p>
+                )}
               </div>
-            )}
+              <div className="opacity-80">
+                <Image
+                  src="/post-shape.webp"
+                  alt=""
+                  width={250}
+                  height={250}
+                  className="object-contain"
+                  priority
+                />
+                <div className="absolute inset-0 rhombus-pattern opacity-30"></div>
+              </div>
+            </div>
           </div>
+        </div>
 
-          {post.metadata.description && (
-            <p className="text-lg text-gray-600 leading-relaxed">
-              {post.metadata.description}
-            </p>
-          )}
-        </header>
-
-        {/* Post Content */}
-        <article className="prose prose-lg max-w-none">
+        <article className="prose prose-lg dark:prose-invert max-w-none">
           <MDXContent source={post.content} />
         </article>
 
-        {/* Navigation Footer */}
-        <footer className="mt-12 pt-8 border-t border-gray-200">
+                  <footer className="mt-12 pt-8 border-t border-neutral-300 dark:border-neutral-600">
           <Link
-            href="/"
-            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+            href="/posts"
+            className="inline-flex items-center text-orange-600 dark:text-orange-400 hover:text-orange-800 dark:hover:text-orange-300 transition-colors"
           >
-            ← Back to home
+            ← Back to posts
           </Link>
         </footer>
       </div>

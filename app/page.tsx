@@ -1,47 +1,30 @@
-import { getAllPosts } from "@/lib/mdx";
-import { PostCard } from "@/app/components/post-card";
-import FadeInSection from "./components/fade-in-section";
+import Image from "next/image";
 
 export default function Home() {
-  const posts = getAllPosts();
-
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 max-w-4xl mx-auto">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <div className="space-y-4">
-          <h1 className="text-3xl font-bold">👋 Hey, I&apos;m Alejandro!</h1>
-          <p className="text-neutral-900/80">
-            I&apos;m a Full Stack Developer currently working on personal
-            projects and developer tooling! I&apos;m currently building Lucas
-            Wallet, an embedded wallet that help people in Venezuela send and
-            receive transactions using USDC on Solana. 📍 Based in Madrid,
-            Spain.
-          </p>
+    <div className="relative h-screen overflow-hidden -mt-16 sm:-mt-20">
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="relative md:mt-24 w-[400px] h-[600px] sm:w-[500px] sm:h-[700px] lg:w-[600px] lg:h-[800px]">
+          <Image
+            src="/bg-shape.webp"
+            alt=""
+            fill
+            className="object-contain opacity-80"
+            priority
+          />
+          <div className="absolute inset-0 rhombus-pattern opacity-30"></div>
         </div>
+      </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Learn. Create. Share.</h2>
-          </div>
-          <div className="mt-4">
-            {posts.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">
-                  No posts yet. Check back soon!
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-6">
-                {posts.map((post) => (
-                  <FadeInSection key={post.metadata.slug}>
-                    <PostCard post={post.metadata} />
-                  </FadeInSection>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </main>
+      <div className="relative z-10 font-sans flex flex-col justify-end h-screen max-w-4xl mx-auto px-8 sm:px-20 pb-8 text-center gap-3">
+        <h1 className="text-3xl font-extrabold">Alejandro Mena</h1>
+        <p className="opacity-60">
+          I&apos;m a Software Engineer who has been working as a Developer
+          Relations Engineer. I&apos;m based in Spain, but I&apos;m from
+          Venezuela. In this blog you&apos;ll discover my thoughts and learning
+          processes!
+        </p>
+      </div>
     </div>
   );
 }

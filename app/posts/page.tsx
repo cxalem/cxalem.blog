@@ -1,18 +1,22 @@
 import { getAllPosts } from "@/lib/mdx";
 import { PostCard } from "@/app/components/post-card";
 import { Metadata } from "next";
+import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "Blog Posts",
-  description: "Thoughts on development, tools, and technology. Read about Solana, Web3, React, TypeScript, and more.",
+  description:
+    "Thoughts on development, tools, and technology. Read about Solana, Web3, React, TypeScript, and more.",
   openGraph: {
     title: "Blog Posts | cxalem.blog",
-    description: "Thoughts on development, tools, and technology. Read about Solana, Web3, React, TypeScript, and more.",
+    description:
+      "Thoughts on development, tools, and technology. Read about Solana, Web3, React, TypeScript, and more.",
     url: "https://cxalem.blog/posts",
   },
   twitter: {
     title: "Blog Posts | cxalem.blog",
-    description: "Thoughts on development, tools, and technology. Read about Solana, Web3, React, TypeScript, and more.",
+    description:
+      "Thoughts on development, tools, and technology. Read about Solana, Web3, React, TypeScript, and more.",
   },
 };
 
@@ -20,13 +24,19 @@ export default function BlogPage() {
   const posts = getAllPosts();
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-4xl mx-auto px-8 py-12">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Blog Posts</h1>
-          <p className="text-gray-600 text-lg">
-            Thoughts on development, tools, and technology.
-          </p>
+    <div className="min-h-screen bg-background">
+      <div className="max-w-4xl mx-auto px-8 ">
+        <div className="mb-8 flex justify-center">
+          <div className="relative h-[300px] w-[300px] sm:w-[400px]">
+            <Image
+              src="/posts-shape.webp"
+              alt=""
+              fill
+              className="object-contain opacity-80"
+              priority
+            />
+            <div className="absolute inset-0 rhombus-pattern opacity-30"></div>
+          </div>
         </div>
 
         {posts.length === 0 ? (
@@ -36,7 +46,7 @@ export default function BlogPage() {
             </p>
           </div>
         ) : (
-          <div className="grid gap-6">
+          <div className="grid gap-6 mb-8">
             {posts.map((post) => (
               <PostCard key={post.metadata.slug} post={post.metadata} />
             ))}

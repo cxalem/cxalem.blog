@@ -9,7 +9,6 @@ import { KeyDifferencesSummary } from "./key-differences-summary";
 import { NotesAndCaveats } from "./notes-and-caveats";
 import { NumberedListCards } from "./numbered-list-cards";
 
-// Custom components for MDX
 export const MDXComponents = {
   h1: ({
     children,
@@ -19,7 +18,8 @@ export const MDXComponents = {
     HTMLHeadingElement
   >) => (
     <h1
-      className="text-4xl font-bold text-gray-900 mb-6 border-b border-gray-200 pb-4"
+      className="text-4xl font-bold text-neutral-900 dark:text-white mb-6 border-b border-neutral-300 dark:border-neutral-600 pb-4 uppercase tracking-wide"
+      style={{ fontFamily: "var(--font-caryotype)" }}
       {...props}
     >
       {children}
@@ -32,7 +32,11 @@ export const MDXComponents = {
     HTMLAttributes<HTMLHeadingElement>,
     HTMLHeadingElement
   >) => (
-    <h2 className="text-3xl font-semibold text-gray-800 mb-4 mt-8" {...props}>
+    <h2 
+      className="text-3xl font-bold text-neutral-900 dark:text-white mb-4 mt-8 uppercase tracking-wide" 
+      style={{ fontFamily: "var(--font-caryotype)" }}
+      {...props}
+    >
       {children}
     </h2>
   ),
@@ -43,7 +47,7 @@ export const MDXComponents = {
     HTMLAttributes<HTMLHeadingElement>,
     HTMLHeadingElement
   >) => (
-    <h3 className="text-2xl font-semibold text-gray-800 mb-3 mt-6" {...props}>
+    <h3 className="text-2xl font-semibold text-neutral-800 dark:text-neutral-200 mb-3 mt-6" {...props}>
       {children}
     </h3>
   ),
@@ -54,7 +58,7 @@ export const MDXComponents = {
     HTMLAttributes<HTMLHeadingElement>,
     HTMLHeadingElement
   >) => (
-    <h4 className="text-xl font-semibold text-gray-800 mb-2 mt-4" {...props}>
+    <h4 className="text-xl font-semibold text-neutral-800 dark:text-neutral-200 mb-2 mt-4" {...props}>
       {children}
     </h4>
   ),
@@ -65,7 +69,7 @@ export const MDXComponents = {
     HTMLAttributes<HTMLParagraphElement>,
     HTMLParagraphElement
   >) => (
-    <p className="text-gray-700 mb-4 leading-relaxed" {...props}>
+    <p className="text-neutral-700/80 dark:text-neutral-300/80 mb-4 leading-relaxed" {...props}>
       {children}
     </p>
   ),
@@ -73,10 +77,9 @@ export const MDXComponents = {
     children,
     ...props
   }: DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement>) => {
-    // Fallback for regular pre elements
     return (
       <pre
-        className="text-gray-100 p-4 rounded-lg overflow-x-auto mb-4 text-sm font-mono"
+        className="text-neutral-100 p-4 rounded-lg overflow-x-auto mb-4 text-sm font-mono"
         {...props}
       >
         {children}
@@ -93,7 +96,7 @@ export const MDXComponents = {
     if (isInline) {
       return (
         <code
-          className="bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded text-sm font-mono"
+          className="bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 px-1.5 py-0.5 rounded text-sm font-mono"
           {...props}
         >
           {children}
@@ -148,7 +151,7 @@ export const MDXComponents = {
     ...props
   }: DetailedHTMLProps<HTMLAttributes<HTMLQuoteElement>, HTMLQuoteElement>) => (
     <blockquote
-      className="border-l-4 border-blue-500 pl-4 py-2 mb-4 bg-blue-50 italic text-gray-700"
+      className="border-l-4 border-orange-500 pl-4 py-2 mb-4 bg-orange-50 dark:bg-orange-900/20 italic text-neutral-700 dark:text-neutral-300"
       {...props}
     >
       {children}
@@ -159,7 +162,7 @@ export const MDXComponents = {
     ...props
   }: DetailedHTMLProps<HTMLAttributes<HTMLUListElement>, HTMLUListElement>) => (
     <ul
-      className="list-disc list-inside mb-4 space-y-1 text-gray-700"
+      className="list-disc list-inside mb-4 space-y-2 text-neutral-700 dark:text-neutral-300"
       {...props}
     >
       {children}
@@ -170,7 +173,7 @@ export const MDXComponents = {
     ...props
   }: DetailedHTMLProps<HTMLAttributes<HTMLOListElement>, HTMLOListElement>) => (
     <ol
-      className="list-decimal list-inside mb-4 space-y-1 text-gray-700"
+      className="list-decimal list-inside mb-4 space-y-2 text-neutral-700 dark:text-neutral-300"
       {...props}
     >
       {children}
@@ -191,7 +194,7 @@ export const MDXComponents = {
     HTMLAttributes<HTMLAnchorElement>,
     HTMLAnchorElement
   >) => (
-    <a className="text-blue-600 hover:text-blue-800 underline" {...props}>
+    <a className="text-orange-600 dark:text-orange-400 hover:text-orange-800 dark:hover:text-orange-300 underline transition-colors" {...props}>
       {children}
     </a>
   ),
@@ -199,7 +202,7 @@ export const MDXComponents = {
     children,
     ...props
   }: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>) => (
-    <strong className="font-semibold text-gray-900" {...props}>
+    <strong className="font-semibold text-neutral-900/80 dark:text-white/80" {...props}>
       {children}
     </strong>
   ),
@@ -217,7 +220,7 @@ export const MDXComponents = {
   }: DetailedHTMLProps<HTMLAttributes<HTMLTableElement>, HTMLTableElement>) => (
     <div className="overflow-x-auto mb-4">
       <table
-        className="min-w-full border border-gray-200 divide-y divide-gray-200"
+        className="min-w-full border border-neutral-300 dark:border-neutral-600 divide-y divide-neutral-300 dark:divide-neutral-600"
         {...props}
       >
         {children}
@@ -231,7 +234,7 @@ export const MDXComponents = {
     HTMLAttributes<HTMLTableSectionElement>,
     HTMLTableSectionElement
   >) => (
-    <thead className="bg-gray-50" {...props}>
+    <thead className="bg-neutral-50 dark:bg-neutral-800" {...props}>
       {children}
     </thead>
   ),
@@ -242,7 +245,7 @@ export const MDXComponents = {
     HTMLAttributes<HTMLTableSectionElement>,
     HTMLTableSectionElement
   >) => (
-    <tbody className="bg-white divide-y divide-gray-200" {...props}>
+    <tbody className="bg-white dark:bg-neutral-900 divide-y divide-neutral-300 dark:divide-neutral-600" {...props}>
       {children}
     </tbody>
   ),
@@ -261,7 +264,7 @@ export const MDXComponents = {
     HTMLTableCellElement
   >) => (
     <th
-      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+      className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider"
       {...props}
     >
       {children}
@@ -275,7 +278,7 @@ export const MDXComponents = {
     HTMLTableCellElement
   >) => (
     <td
-      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+      className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900"
       {...props}
     >
       {children}
@@ -284,7 +287,7 @@ export const MDXComponents = {
   hr: ({
     ...props
   }: DetailedHTMLProps<HTMLAttributes<HTMLHRElement>, HTMLHRElement>) => (
-    <hr className="my-8 border-gray-200" {...props} />
+    <hr className="my-8 border-neutral-300 dark:border-neutral-600" {...props} />
   ),
   
   // Custom migration guide components
