@@ -1,5 +1,6 @@
 import { getAllPosts } from "@/lib/mdx";
 import { PostCard } from "@/app/components/post-card";
+import FadeInSection from "./components/fade-in-section";
 
 export default function Home() {
   const posts = getAllPosts();
@@ -32,7 +33,9 @@ export default function Home() {
             ) : (
               <div className="grid gap-6">
                 {posts.map((post) => (
-                  <PostCard key={post.metadata.slug} post={post.metadata} />
+                  <FadeInSection key={post.metadata.slug}>
+                    <PostCard post={post.metadata} />
+                  </FadeInSection>
                 ))}
               </div>
             )}
