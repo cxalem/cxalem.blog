@@ -5,6 +5,7 @@ import { MDXContent } from "@/app/components/mdx-content";
 import { Metadata } from "next";
 import { Tag } from "@/app/components/tag";
 import Image from "next/image";
+import { TableOfContents } from "@/app/components/table-of-contents";
 
 interface PostPageProps {
   params: Promise<{ slug: string }>;
@@ -94,7 +95,7 @@ export default async function PostPage({ params }: PostPageProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto px-8 py-12">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
           <Link
             href="/posts"
@@ -110,7 +111,7 @@ export default async function PostPage({ params }: PostPageProps) {
               {post.metadata.date && (
                 <time
                   dateTime={post.metadata.date}
-                  className="text-sm text-gray-500 dark:text-gray-400 flex-shrink-0"
+                  className="text-sm text-neutral-500 dark:text-neutral-400 flex-shrink-0"
                 >
                   {new Date(post.metadata.date).toLocaleDateString("en-US", {
                     year: "numeric",
@@ -132,14 +133,14 @@ export default async function PostPage({ params }: PostPageProps) {
               <div>
                 {post.metadata.title && (
                   <h1
-                    className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white uppercase tracking-wide mb-6"
+                    className="text-2xl md:text-3xl font-bold text-neutral-900 dark:text-white uppercase tracking-wide mb-6"
                     style={{ fontFamily: "var(--font-caryotype)" }}
                   >
                     {post.metadata.title}
                   </h1>
                 )}
                 {post.metadata.description && (
-                  <p className="text-gray-600 dark:text-gray-300 leading-relaxed max-w-xl">
+                  <p className="text-neutral-600 dark:text-neutral-300 leading-relaxed max-w-xl">
                     {post.metadata.description}
                   </p>
                 )}
@@ -159,9 +160,15 @@ export default async function PostPage({ params }: PostPageProps) {
           </div>
         </div>
 
-        <article className="prose prose-lg dark:prose-invert max-w-none">
-          <MDXContent source={post.content} />
-        </article>
+        <div className="flex gap-8 xl:gap-12">
+          <aside className="w-64 xl:w-72 flex-shrink-0 hidden lg:block">
+            <TableOfContents source={post.content} />
+          </aside>
+          
+          <article className="prose prose-lg dark:prose-invert max-w-none flex-1 min-w-0">
+            <MDXContent source={post.content} />
+          </article>
+        </div>
 
                   <footer className="mt-12 pt-8 border-t border-neutral-300 dark:border-neutral-600">
           <Link

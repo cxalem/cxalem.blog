@@ -16,52 +16,102 @@ export const MDXComponents = {
   }: DetailedHTMLProps<
     HTMLAttributes<HTMLHeadingElement>,
     HTMLHeadingElement
-  >) => (
-    <h1
-      className="text-4xl font-bold text-neutral-900 dark:text-white mb-6 border-b border-neutral-300 dark:border-neutral-600 pb-4 uppercase tracking-wide"
-      style={{ fontFamily: "var(--font-caryotype)" }}
-      {...props}
-    >
-      {children}
-    </h1>
-  ),
+  >) => {
+    const text = typeof children === 'string' ? children : '';
+    const id = text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    
+    return (
+      <h1
+        id={id}
+        className="text-4xl font-bold text-neutral-900 dark:text-white mb-6 border-b border-neutral-300 dark:border-neutral-600 pb-4 uppercase tracking-wide"
+        style={{ fontFamily: "var(--font-caryotype)" }}
+        {...props}
+      >
+        {children}
+      </h1>
+    );
+  },
   h2: ({
     children,
     ...props
   }: DetailedHTMLProps<
     HTMLAttributes<HTMLHeadingElement>,
     HTMLHeadingElement
-  >) => (
-    <h2 
-      className="text-3xl font-bold text-neutral-900 dark:text-white mb-4 mt-8 uppercase tracking-wide" 
-      style={{ fontFamily: "var(--font-caryotype)" }}
-      {...props}
-    >
-      {children}
-    </h2>
-  ),
+  >) => {
+    const text = typeof children === 'string' ? children : '';
+    const id = text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    
+    return (
+      <h2 
+        id={id}
+        className="text-3xl font-bold text-neutral-900 dark:text-white mb-4 mt-8 uppercase tracking-wide" 
+        style={{ fontFamily: "var(--font-caryotype)" }}
+        {...props}
+      >
+        {children}
+      </h2>
+    );
+  },
   h3: ({
     children,
     ...props
   }: DetailedHTMLProps<
     HTMLAttributes<HTMLHeadingElement>,
     HTMLHeadingElement
-  >) => (
-    <h3 className="text-2xl font-semibold text-neutral-800 dark:text-neutral-200 mb-3 mt-6" {...props}>
-      {children}
-    </h3>
-  ),
+  >) => {
+    const text = typeof children === 'string' ? children : '';
+    const id = text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    
+    return (
+      <h3 
+        id={id}
+        className="text-2xl font-semibold text-neutral-800 dark:text-neutral-200 mb-3 mt-6" 
+        {...props}
+      >
+        {children}
+      </h3>
+    );
+  },
   h4: ({
     children,
     ...props
   }: DetailedHTMLProps<
     HTMLAttributes<HTMLHeadingElement>,
     HTMLHeadingElement
-  >) => (
-    <h4 className="text-xl font-semibold text-neutral-800 dark:text-neutral-200 mb-2 mt-4" {...props}>
-      {children}
-    </h4>
-  ),
+  >) => {
+    const text = typeof children === 'string' ? children : '';
+    const id = text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    
+    return (
+      <h4 
+        id={id}
+        className="text-xl font-semibold text-neutral-800 dark:text-neutral-200 mb-2 mt-4" 
+        {...props}
+      >
+        {children}
+      </h4>
+    );
+  },
   p: ({
     children,
     ...props
