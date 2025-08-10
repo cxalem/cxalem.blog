@@ -9,6 +9,26 @@ import { KeyDifferencesSummary } from "./key-differences-summary";
 import { NotesAndCaveats } from "./notes-and-caveats";
 import { NumberedListCards } from "./numbered-list-cards";
 
+// Global counter for heading IDs - resets on each page load
+let headingCounter = 0;
+
+export function resetHeadingCounter(): void {
+  headingCounter = 0;
+}
+
+function generateHeadingId(text: string): string {
+  const baseId = text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  
+  const id = `${baseId}-${headingCounter}`;
+  headingCounter++;
+  return id;
+}
+
 export const MDXComponents = {
   h1: ({
     children,
@@ -18,12 +38,7 @@ export const MDXComponents = {
     HTMLHeadingElement
   >) => {
     const text = typeof children === 'string' ? children : '';
-    const id = text
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
+    const id = generateHeadingId(text);
     
     return (
       <h1
@@ -44,12 +59,7 @@ export const MDXComponents = {
     HTMLHeadingElement
   >) => {
     const text = typeof children === 'string' ? children : '';
-    const id = text
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
+    const id = generateHeadingId(text);
     
     return (
       <h2 
@@ -70,12 +80,7 @@ export const MDXComponents = {
     HTMLHeadingElement
   >) => {
     const text = typeof children === 'string' ? children : '';
-    const id = text
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
+    const id = generateHeadingId(text);
     
     return (
       <h3 
@@ -95,12 +100,7 @@ export const MDXComponents = {
     HTMLHeadingElement
   >) => {
     const text = typeof children === 'string' ? children : '';
-    const id = text
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
+    const id = generateHeadingId(text);
     
     return (
       <h4 
