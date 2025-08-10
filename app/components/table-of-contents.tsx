@@ -17,68 +17,116 @@ export function TableOfContents({ source }: TableOfContentsProps) {
   const [activeId, setActiveId] = useState<string>("");
   const [isVisible, setIsVisible] = useState(false);
 
-  useEffect(() => {
-    // Extract headings from markdown source
-    const headingRegex = /^(#{1,6})\s+(.+)$/gm;
+    useEffect(() => {
+    // Extract headings from markdown source, avoiding code blocks
+    const lines = source.split('\n');
     const items: TOCItem[] = [];
-    let match;
-    let headingIndex = 0;
+    let inCodeBlock = false;
 
-    while ((match = headingRegex.exec(source)) !== null) {
-      const level = match[1].length;
-      const text = match[2].trim();
-      const baseId = text
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "");
+    for (const line of lines) {
+      // Track code block boundaries
+      if (line.trim().startsWith('```')) {
+        inCodeBlock = !inCodeBlock;
+        continue;
+      }
+      
+      // Skip lines inside code blocks
+      if (inCodeBlock) {
+        continue;
+      }
+      
+      // Check for heading pattern
+      const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+      if (headingMatch) {
+        const level = headingMatch[1].length;
+        const text = headingMatch[2].trim();
+        
+        // Skip empty headings or headings with only special characters
+        if (!text || /^[^a-zA-Z0-9]+$/.test(text)) {
+          continue;
+        }
+        
+        const baseId = text
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, "")
+          .replace(/\s+/g, "-")
+          .replace(/-+/g, "-")
+          .replace(/^-|-$/g, "");
 
-      // Create unique ID by combining base ID with index position
-      const id = `${baseId}-${headingIndex}`;
-      headingIndex++;
+        // Skip if ID would be empty
+        if (!baseId) {
+          continue;
+        }
 
-      items.push({ id, text, level });
+        items.push({ id: baseId, text, level });
+      }
     }
 
     setTocItems(items);
     
-    // Add a slight delay for the fade-in effect
+    // Filter TOC items to only include headings that actually exist in the DOM
     setTimeout(() => {
+      const filteredItems = items.filter(item => {
+        const element = document.getElementById(item.id);
+        return element !== null;
+      });
+      
+      if (filteredItems.length !== items.length) {
+        console.log('Filtered out non-existent headings:', 
+          items.filter(item => !document.getElementById(item.id)).map(item => item.text)
+        );
+        setTocItems(filteredItems);
+      }
+      
       setIsVisible(true);
-    }, 100);
+    }, 200); // Increased delay to ensure MDX content is fully rendered
   }, [source]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         const visibleEntries = entries.filter((entry) => entry.isIntersecting);
+        console.log('Visible entries:', visibleEntries.map(e => ({ id: e.target.id, top: e.boundingClientRect.top })));
+        
         if (visibleEntries.length > 0) {
           const closestEntry = visibleEntries.reduce((closest, entry) => {
             const closestDistance = Math.abs(closest.boundingClientRect.top);
             const entryDistance = Math.abs(entry.boundingClientRect.top);
             return entryDistance < closestDistance ? entry : closest;
           });
+          console.log('Setting active ID to:', closestEntry.target.id);
           setActiveId(closestEntry.target.id);
         }
       },
       {
-        rootMargin: "-20% 0% -80% 0%",
-        threshold: 0,
+        rootMargin: "-10% 0% -70% 0%",
+        threshold: [0, 0.1, 0.5, 1],
       }
     );
 
-    const headingElements = document.querySelectorAll("h1, h2, h3, h4, h5, h6");
-    headingElements.forEach((el) => observer.observe(el));
+    // Add a small delay to ensure headings are rendered
+    setTimeout(() => {
+      const headingElements = document.querySelectorAll("h1, h2, h3, h4, h5, h6");
+      console.log('Observing headings:', Array.from(headingElements).map(el => el.id).filter(Boolean));
+      headingElements.forEach((el) => {
+        if (el.id) { // Only observe headings with IDs
+          observer.observe(el);
+        }
+      });
+    }, 100);
 
     return () => {
-      headingElements.forEach((el) => observer.unobserve(el));
+      observer.disconnect();
     };
   }, [tocItems]);
 
   const handleClick = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
+      // Immediately set active state
+      setActiveId(id);
+      console.log('Clicked item, setting active ID to:', id);
+      
       element.scrollIntoView({
         behavior: "smooth",
         block: "start",
@@ -139,6 +187,9 @@ export function TableOfContents({ source }: TableOfContentsProps) {
                         : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100/50 dark:hover:bg-neutral-700/30"
                     }
                   `}
+                  data-active={activeId === item.id ? 'true' : 'false'}
+                  data-item-id={item.id}
+                  data-current-active={activeId}
                   style={{
                     paddingLeft: `${(item.level - 1) * 8 + 8}px`,
                   }}

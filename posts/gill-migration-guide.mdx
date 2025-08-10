@@ -50,7 +50,7 @@ npm install gill
 
 ### 1. Client Creation
 
-#### Before: @solana/web3.js
+#### Before: @solana/web3.js Client Setup
 ```typescript
 import { Connection, clusterApiUrl } from '@solana/web3.js';
 
@@ -61,7 +61,7 @@ const slot = await connection.getSlot();
 const balance = await connection.getBalance(publicKey);
 ```
 
-#### After: Gill
+#### After: Gill Client Setup
 ```typescript
 import { createSolanaClient } from 'gill';
 
@@ -100,7 +100,7 @@ export class AirdropClient {
 
 ### 2. Address Handling
 
-#### Before: @solana/web3.js
+#### Before: @solana/web3.js Addresses
 ```typescript
 import { PublicKey } from '@solana/web3.js';
 
@@ -108,7 +108,7 @@ const pubkey = new PublicKey('HcCcKydEcuGMbBso7jciQrFpBw1XQrKHKFckGSAxXXQG');
 const pubkeyString = pubkey.toString();
 ```
 
-#### After: Gill
+#### After: Gill Addresses
 ```typescript
 import { address } from 'gill';
 
@@ -135,7 +135,7 @@ async validateClaim(signerAddress: string): Promise<void> {
 
 ### 3. Response Handling
 
-#### Before: @solana/web3.js
+#### Before: @solana/web3.js Response
 ```typescript
 const balance = await connection.getBalance(publicKey);
 console.log('Balance:', balance); // Direct number
@@ -144,7 +144,7 @@ const accountInfo = await connection.getAccountInfo(publicKey);
 console.log('Account:', accountInfo); // Direct object or null
 ```
 
-#### After: Gill
+#### After: Gill Response
 ```typescript
 const balance = await rpc.getBalance(address).send();
 console.log('Balance:', balance.value); // Structured response with .value
@@ -168,7 +168,7 @@ async checkClaimStatus(privateKey: string): Promise<boolean> {
 
 ### 4. Transaction Building
 
-#### Before: @solana/web3.js
+#### Before: @solana/web3.js Transactions
 ```typescript
 import { Transaction, SystemProgram, PublicKey } from '@solana/web3.js';
 
@@ -185,7 +185,7 @@ transaction.recentBlockhash = blockhash;
 transaction.feePayer = payerPublicKey;
 ```
 
-#### After: Gill
+#### After: Gill Transactions
 ```typescript
 import { createTransaction } from 'gill';
 import { getTransferSolInstruction } from 'gill/programs';
@@ -248,7 +248,7 @@ private async sendClaimTransaction(params: {
 
 ### 5. PDA (Program Derived Address) Generation
 
-#### Before: @solana/web3.js
+#### Before: @solana/web3.js PDA
 ```typescript
 import { PublicKey } from '@solana/web3.js';
 
@@ -258,7 +258,7 @@ const [pda, bump] = PublicKey.findProgramAddressSync(
 );
 ```
 
-#### After: Gill
+#### After: Gill PDA
 ```typescript
 import { getProgramDerivedAddress } from 'gill';
 
@@ -294,7 +294,7 @@ async checkClaimStatus(privateKey: string): Promise<boolean> {
 
 ### 6. Keypair and Signer Creation
 
-#### Before: @solana/web3.js
+#### Before: @solana/web3.js Keypairs
 ```typescript
 import { Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
@@ -303,7 +303,7 @@ const secretKey = bs58.decode(secretKeyString);
 const keypair = Keypair.fromSecretKey(secretKey);
 ```
 
-#### After: Gill
+#### After: Gill Keypairs
 ```typescript
 import { createKeyPairSignerFromBytes } from 'gill';
 import bs58 from 'bs58';

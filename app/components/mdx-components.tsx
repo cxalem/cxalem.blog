@@ -24,9 +24,7 @@ function generateHeadingId(text: string): string {
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
   
-  const id = `${baseId}-${headingCounter}`;
-  headingCounter++;
-  return id;
+  return baseId;
 }
 
 export const MDXComponents = {
