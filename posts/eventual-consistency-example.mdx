@@ -89,13 +89,13 @@ The system operates in two distinct states:
 
 ## Key Features
 
-### Real-Time Simulation
+### Real-Time Data Simulation
 
 - **30-second data generation** from primary source
 - **Random replication delays** up to 5 minutes
 - **Event-driven architecture** using EventEmitter pattern
 
-### State Management
+### Application State Management
 
 - **Automatic state transitions** based on data availability
 - **Centralized state management** in `src/states.ts`
@@ -140,7 +140,7 @@ class Live extends EventEmitter {
 }
 ```
 
-### State Management
+### State Management Implementation
 
 ```typescript
 type Modes = "BOOT" | "LIVE";
