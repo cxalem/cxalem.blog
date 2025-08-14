@@ -16,6 +16,7 @@ export function TableOfContents({ source }: TableOfContentsProps) {
   const [tocItems, setTocItems] = useState<TOCItem[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [isVisible, setIsVisible] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
     useEffect(() => {
     // Extract headings from markdown source, avoiding code blocks
@@ -96,6 +97,21 @@ export function TableOfContents({ source }: TableOfContentsProps) {
           });
           console.log('Setting active ID to:', closestEntry.target.id);
           setActiveId(closestEntry.target.id);
+          
+          // Auto-expand section containing the active heading and collapse others
+          const organized = organizeItems(tocItems);
+          const parentSection = organized.find(section => 
+            section.id === closestEntry.target.id || 
+            section.children?.some(child => child.id === closestEntry.target.id)
+          );
+          
+          if (parentSection && parentSection.children && parentSection.children.length > 0) {
+            // Collapse all sections and expand only the current one (accordion behavior)
+            setExpandedSections(new Set([parentSection.id]));
+          } else if (parentSection) {
+            // If it's a main section without children, collapse all sections
+            setExpandedSections(new Set());
+          }
         }
       },
       {
@@ -127,11 +143,59 @@ export function TableOfContents({ source }: TableOfContentsProps) {
       setActiveId(id);
       console.log('Clicked item, setting active ID to:', id);
       
+      // Auto-expand section containing the clicked heading (accordion behavior)
+      const organized = organizeItems(tocItems);
+      const parentSection = organized.find(section => 
+        section.id === id || 
+        section.children?.some(child => child.id === id)
+      );
+      
+      if (parentSection && parentSection.children && parentSection.children.length > 0) {
+        // Collapse all sections and expand only the current one (accordion behavior)
+        setExpandedSections(new Set([parentSection.id]));
+      } else if (parentSection) {
+        // If it's a main section without children, collapse all sections
+        setExpandedSections(new Set());
+      }
+      
       element.scrollIntoView({
         behavior: "smooth",
         block: "start",
       });
     }
+  };
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(sectionId)) {
+        newExpanded.delete(sectionId);
+      } else {
+        newExpanded.add(sectionId);
+      }
+      return newExpanded;
+    });
+  };
+
+  // Organize items into hierarchical structure
+  const organizeItems = (items: TOCItem[]) => {
+    const organized: Array<TOCItem & { children?: TOCItem[] }> = [];
+    let currentParent: (TOCItem & { children?: TOCItem[] }) | null = null;
+
+    for (const item of items) {
+      if (item.level <= 2) { // H1 and H2 are main sections
+        currentParent = { ...item, children: [] };
+        organized.push(currentParent);
+      } else if (currentParent) { // H3+ are subsections
+        currentParent.children = currentParent.children || [];
+        currentParent.children.push(item);
+      } else {
+        // Fallback: treat as main section if no parent
+        organized.push({ ...item, children: [] });
+      }
+    }
+
+    return organized;
   };
 
   if (tocItems.length === 0 && isVisible) {
@@ -174,29 +238,78 @@ export function TableOfContents({ source }: TableOfContentsProps) {
           </h3>
         </div>
         <nav className="flex-1 overflow-y-auto px-4 lg:px-6 pb-4 lg:pb-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-300 [&::-webkit-scrollbar-thumb]:rounded-full dark:[&::-webkit-scrollbar-thumb]:bg-neutral-600">
-          <ul className="space-y-1 lg:space-y-2">
-            {tocItems.map((item) => (
-              <li key={item.id}>
-                <button
-                  onClick={() => handleClick(item.id)}
-                  className={`
-                    block w-full text-left text-xs cursor-pointer lg:text-sm transition-all duration-200 hover:text-orange-600 dark:hover:text-orange-400 rounded-md px-2 py-1 -mx-2 truncate
-                    ${
-                      activeId === item.id
-                        ? "text-orange-600 dark:text-orange-400 font-medium bg-orange-50/50 dark:bg-orange-900/20"
-                        : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100/50 dark:hover:bg-neutral-700/30"
-                    }
-                  `}
-                  data-active={activeId === item.id ? 'true' : 'false'}
-                  data-item-id={item.id}
-                  data-current-active={activeId}
-                  style={{
-                    paddingLeft: `${(item.level - 1) * 8 + 8}px`,
-                  }}
-                  title={item.text}
-                >
-                  {item.text}
-                </button>
+          <ul className="space-y-1">
+            {organizeItems(tocItems).map((section) => (
+              <li key={section.id}>
+                {/* Main section header */}
+                <div className="flex items-center">
+                  {section.children && section.children.length > 0 && (
+                    <button
+                      onClick={() => toggleSection(section.id)}
+                      className="flex-shrink-0 w-4 h-4 mr-1 flex items-center justify-center text-neutral-500 dark:text-neutral-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                    >
+                      <svg
+                        className={`w-3 h-3 transition-transform duration-200 ${
+                          expandedSections.has(section.id) ? 'rotate-90' : ''
+                        }`}
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      handleClick(section.id);
+                      // Also toggle the section if it has children
+                      if (section.children && section.children.length > 0) {
+                        toggleSection(section.id);
+                      }
+                    }}
+                    className={`
+                      flex-1 text-left text-xs cursor-pointer lg:text-sm transition-all duration-200 hover:text-orange-600 dark:hover:text-orange-400 rounded-md px-2 py-1 truncate
+                      ${
+                        activeId === section.id
+                          ? "text-orange-600 dark:text-orange-400 font-medium bg-orange-50/50 dark:bg-orange-900/20"
+                          : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100/50 dark:hover:bg-neutral-700/30"
+                      }
+                    `}
+                    style={{
+                      paddingLeft: `${(section.level - 1) * 8 + 8}px`,
+                    }}
+                    title={section.text}
+                  >
+                    {section.text}
+                  </button>
+                </div>
+
+                {/* Subsections */}
+                {section.children && section.children.length > 0 && expandedSections.has(section.id) && (
+                  <ul className="mt-1 space-y-1">
+                    {section.children.map((child) => (
+                      <li key={child.id}>
+                        <button
+                          onClick={() => handleClick(child.id)}
+                          className={`
+                            block w-full text-left text-xs cursor-pointer lg:text-sm transition-all duration-200 hover:text-orange-600 dark:hover:text-orange-400 rounded-md px-2 py-1 -mx-2 truncate
+                            ${
+                              activeId === child.id
+                                ? "text-orange-600 dark:text-orange-400 font-medium bg-orange-50/50 dark:bg-orange-900/20"
+                                : "text-neutral-500 dark:text-neutral-500 hover:bg-neutral-100/50 dark:hover:bg-neutral-700/30"
+                            }
+                          `}
+                          style={{
+                            paddingLeft: `${(child.level - 1) * 8 + 16}px`,
+                          }}
+                          title={child.text}
+                        >
+                          {child.text}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
           </ul>
