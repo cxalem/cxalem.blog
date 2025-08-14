@@ -34,14 +34,14 @@ export async function generateMetadata({
   const { title, description, tags } = post.metadata;
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://cxalem.blog";
 
-  // Create OG image URL with post data
+
   const ogImageUrl = new URL(`${baseUrl}/api/og`);
   if (title) ogImageUrl.searchParams.set("title", title);
   if (description) ogImageUrl.searchParams.set("description", description);
   if (tags && tags.length > 0)
     ogImageUrl.searchParams.set("tags", tags.join(","));
   
-  // Add cache busting for development
+
   if (process.env.NODE_ENV === 'development') {
     ogImageUrl.searchParams.set("v", Date.now().toString());
   }

@@ -9,7 +9,6 @@ import { KeyDifferencesSummary } from "./key-differences-summary";
 import { NotesAndCaveats } from "./notes-and-caveats";
 import { NumberedListCards } from "./numbered-list-cards";
 
-// Global counter for heading IDs - resets on each page load
 let headingCounter = 0;
 
 export function resetHeadingCounter(): void {
@@ -152,18 +151,18 @@ export const MDXComponents = {
       );
     }
 
-    // This is a code block with a language class
+
     if (className && typeof children === "string") {
       const language = className.replace(/language-/, "");
       
-      // Check if it's a bash/shell command with package manager commands
+
       if ((language === "bash" || language === "shell") && children.trim()) {
         const lines = children.trim().split('\n');
         const packageManagerCommands = lines.filter(line => 
           /^(npm|yarn|pnpm|bun)\s+(install|add|uninstall|remove|rm|i)\s+/.test(line.trim())
         );
 
-        // If we found package manager commands, use the tabs component
+
         if (packageManagerCommands.length > 0) {
           const installCommands = packageManagerCommands.filter(cmd => 
             /^(npm|yarn|pnpm|bun)\s+(install|add|i)\s+/.test(cmd.trim())
@@ -183,11 +182,11 @@ export const MDXComponents = {
         }
       }
 
-      // Use regular CodeBlock for everything else
+
       return <CodeBlock className={className}>{children}</CodeBlock>;
     }
 
-    // Fallback for other code elements
+
     return (
       <code className={`font-mono text-sm ${className || ""}`} {...props}>
         {children}
@@ -338,7 +337,7 @@ export const MDXComponents = {
     <hr className="my-8 border-neutral-300 dark:border-neutral-600" {...props} />
   ),
   
-  // Custom migration guide components
+
   MigrationChecklist,
   KeyDifferencesSummary,
   NotesAndCaveats,

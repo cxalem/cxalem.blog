@@ -17,11 +17,10 @@ export function MDXContent({ source }: MDXContentProps) {
   useEffect(() => {
     const serializeMdx = async () => {
       try {
-        // Reset heading counter for new content
         resetHeadingCounter();
         const serialized = await serialize(source);
         setMdxSource(serialized);
-        // Small delay to ensure smooth transition
+
         setTimeout(() => {
           setIsVisible(true);
         }, 50);

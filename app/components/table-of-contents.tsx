@@ -1,149 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-interface TOCItem {
-  id: string;
-  text: string;
-  level: number;
-}
+import { TableOfContentsSkeleton } from "./table-of-contents-skeleton";
+import { useTableOfContents } from "./hooks/use-table-of-contents";
+import { useActiveSection } from "./hooks/use-active-section";
+import { useCollapsibleSections } from "./hooks/use-collapsible-sections";
 
 interface TableOfContentsProps {
   source: string;
 }
 
 export function TableOfContents({ source }: TableOfContentsProps) {
-  const [tocItems, setTocItems] = useState<TOCItem[]>([]);
-  const [activeId, setActiveId] = useState<string>("");
-  const [isVisible, setIsVisible] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
-
-    useEffect(() => {
-    // Extract headings from markdown source, avoiding code blocks
-    const lines = source.split('\n');
-    const items: TOCItem[] = [];
-    let inCodeBlock = false;
-
-    for (const line of lines) {
-      // Track code block boundaries
-      if (line.trim().startsWith('```')) {
-        inCodeBlock = !inCodeBlock;
-        continue;
-      }
-      
-      // Skip lines inside code blocks
-      if (inCodeBlock) {
-        continue;
-      }
-      
-      // Check for heading pattern
-      const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
-      if (headingMatch) {
-        const level = headingMatch[1].length;
-        const text = headingMatch[2].trim();
-        
-        // Skip empty headings or headings with only special characters
-        if (!text || /^[^a-zA-Z0-9]+$/.test(text)) {
-          continue;
-        }
-        
-        const baseId = text
-          .toLowerCase()
-          .replace(/[^a-z0-9\s-]/g, "")
-          .replace(/\s+/g, "-")
-          .replace(/-+/g, "-")
-          .replace(/^-|-$/g, "");
-
-        // Skip if ID would be empty
-        if (!baseId) {
-          continue;
-        }
-
-        items.push({ id: baseId, text, level });
-      }
-    }
-
-    setTocItems(items);
-    
-    // Filter TOC items to only include headings that actually exist in the DOM
-    setTimeout(() => {
-      const filteredItems = items.filter(item => {
-        const element = document.getElementById(item.id);
-        return element !== null;
-      });
-      
-      if (filteredItems.length !== items.length) {
-        console.log('Filtered out non-existent headings:', 
-          items.filter(item => !document.getElementById(item.id)).map(item => item.text)
-        );
-        setTocItems(filteredItems);
-      }
-      
-      setIsVisible(true);
-    }, 200); // Increased delay to ensure MDX content is fully rendered
-  }, [source]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visibleEntries = entries.filter((entry) => entry.isIntersecting);
-        console.log('Visible entries:', visibleEntries.map(e => ({ id: e.target.id, top: e.boundingClientRect.top })));
-        
-        if (visibleEntries.length > 0) {
-          const closestEntry = visibleEntries.reduce((closest, entry) => {
-            const closestDistance = Math.abs(closest.boundingClientRect.top);
-            const entryDistance = Math.abs(entry.boundingClientRect.top);
-            return entryDistance < closestDistance ? entry : closest;
-          });
-          console.log('Setting active ID to:', closestEntry.target.id);
-          setActiveId(closestEntry.target.id);
-          
-          // Auto-expand section containing the active heading and collapse others
-          const organized = organizeItems(tocItems);
-          const parentSection = organized.find(section => 
-            section.id === closestEntry.target.id || 
-            section.children?.some(child => child.id === closestEntry.target.id)
-          );
-          
-          if (parentSection && parentSection.children && parentSection.children.length > 0) {
-            // Collapse all sections and expand only the current one (accordion behavior)
-            setExpandedSections(new Set([parentSection.id]));
-          } else if (parentSection) {
-            // If it's a main section without children, collapse all sections
-            setExpandedSections(new Set());
-          }
-        }
-      },
-      {
-        rootMargin: "-10% 0% -70% 0%",
-        threshold: [0, 0.1, 0.5, 1],
-      }
-    );
-
-    // Add a small delay to ensure headings are rendered
-    setTimeout(() => {
-      const headingElements = document.querySelectorAll("h1, h2, h3, h4, h5, h6");
-      console.log('Observing headings:', Array.from(headingElements).map(el => el.id).filter(Boolean));
-      headingElements.forEach((el) => {
-        if (el.id) { // Only observe headings with IDs
-          observer.observe(el);
-        }
-      });
-    }, 100);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [tocItems]);
+  const { tocItems, isVisible, organizeItems } = useTableOfContents(source);
+  const { activeId, setActiveSection } = useActiveSection(tocItems);
+  const { 
+    expandedSections, 
+    toggleSection, 
+    expandOnlySection, 
+    collapseAllSections 
+  } = useCollapsibleSections(tocItems, activeId, organizeItems);
 
   const handleClick = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
-      // Immediately set active state
-      setActiveId(id);
-      console.log('Clicked item, setting active ID to:', id);
-      
-      // Auto-expand section containing the clicked heading (accordion behavior)
+      setActiveSection(id);
       const organized = organizeItems(tocItems);
       const parentSection = organized.find(section => 
         section.id === id || 
@@ -151,11 +30,9 @@ export function TableOfContents({ source }: TableOfContentsProps) {
       );
       
       if (parentSection && parentSection.children && parentSection.children.length > 0) {
-        // Collapse all sections and expand only the current one (accordion behavior)
-        setExpandedSections(new Set([parentSection.id]));
+        expandOnlySection(parentSection.id);
       } else if (parentSection) {
-        // If it's a main section without children, collapse all sections
-        setExpandedSections(new Set());
+        collapseAllSections();
       }
       
       element.scrollIntoView({
@@ -165,63 +42,12 @@ export function TableOfContents({ source }: TableOfContentsProps) {
     }
   };
 
-  const toggleSection = (sectionId: string) => {
-    setExpandedSections(prev => {
-      const newExpanded = new Set(prev);
-      if (newExpanded.has(sectionId)) {
-        newExpanded.delete(sectionId);
-      } else {
-        newExpanded.add(sectionId);
-      }
-      return newExpanded;
-    });
-  };
-
-  // Organize items into hierarchical structure
-  const organizeItems = (items: TOCItem[]) => {
-    const organized: Array<TOCItem & { children?: TOCItem[] }> = [];
-    let currentParent: (TOCItem & { children?: TOCItem[] }) | null = null;
-
-    for (const item of items) {
-      if (item.level <= 2) { // H1 and H2 are main sections
-        currentParent = { ...item, children: [] };
-        organized.push(currentParent);
-      } else if (currentParent) { // H3+ are subsections
-        currentParent.children = currentParent.children || [];
-        currentParent.children.push(item);
-      } else {
-        // Fallback: treat as main section if no parent
-        organized.push({ ...item, children: [] });
-      }
-    }
-
-    return organized;
-  };
-
   if (tocItems.length === 0 && isVisible) {
     return null;
   }
 
-  // Show loading skeleton while content is being processed
   if (tocItems.length === 0 && !isVisible) {
-    return (
-      <div className="sticky top-8">
-        <div className="bg-neutral-50/90 dark:bg-neutral-800/90 backdrop-blur-sm border border-neutral-200/60 dark:border-neutral-700/60 rounded-xl shadow-sm max-h-[calc(100vh-8rem)] flex flex-col">
-          <div className="p-4 lg:p-6 pb-2 lg:pb-3 flex-shrink-0">
-            <div className="h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-32 animate-pulse"></div>
-          </div>
-          <div className="flex-1 px-4 lg:px-6 pb-4 lg:pb-6">
-            <div className="space-y-2 animate-pulse">
-              <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-full"></div>
-              <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-4/5 ml-4"></div>
-              <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-3/5 ml-8"></div>
-              <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-5/6"></div>
-              <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4 ml-4"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <TableOfContentsSkeleton />;
   }
 
   return (
@@ -241,12 +67,12 @@ export function TableOfContents({ source }: TableOfContentsProps) {
           <ul className="space-y-1">
             {organizeItems(tocItems).map((section) => (
               <li key={section.id}>
-                {/* Main section header */}
+
                 <div className="flex items-center">
                   {section.children && section.children.length > 0 && (
                     <button
                       onClick={() => toggleSection(section.id)}
-                      className="flex-shrink-0 w-4 h-4 mr-1 flex items-center justify-center text-neutral-500 dark:text-neutral-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                      className="flex-shrink-0 cursor-pointer w-4 h-4 mr-1 flex items-center justify-center text-neutral-500 dark:text-neutral-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                     >
                       <svg
                         className={`w-3 h-3 transition-transform duration-200 ${
@@ -262,7 +88,7 @@ export function TableOfContents({ source }: TableOfContentsProps) {
                   <button
                     onClick={() => {
                       handleClick(section.id);
-                      // Also toggle the section if it has children
+
                       if (section.children && section.children.length > 0) {
                         toggleSection(section.id);
                       }
@@ -284,7 +110,7 @@ export function TableOfContents({ source }: TableOfContentsProps) {
                   </button>
                 </div>
 
-                {/* Subsections */}
+
                 {section.children && section.children.length > 0 && expandedSections.has(section.id) && (
                   <ul className="mt-1 space-y-1">
                     {section.children.map((child) => (

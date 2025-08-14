@@ -4,10 +4,10 @@ import { getAllPosts } from '@/lib/mdx';
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://cxalem.blog';
   
-  // Get all posts
+
   const posts = getAllPosts();
   
-  // Static pages
+
   const staticPages = [
     {
       url: baseUrl,
@@ -23,7 +23,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
   
-  // Dynamic blog post pages
+
   const postPages = posts.map((post) => ({
     url: `${baseUrl}/posts/${post.metadata.slug}`,
     lastModified: post.metadata.date ? new Date(post.metadata.date) : new Date(),

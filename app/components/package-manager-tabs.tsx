@@ -16,12 +16,12 @@ const packageManagers = [
 ];
 
 function convertCommand(command: string, packageManager: string): string {
-  // Remove existing package manager prefixes
+
   const cleanCommand = command
     .replace(/^(npm|yarn|pnpm|bun)\s+/, '')
     .trim();
 
-  // Handle different command types
+
   if (cleanCommand.startsWith('install ') || cleanCommand.startsWith('i ')) {
     const packages = cleanCommand.replace(/^(install|i)\s+/, '');
     
@@ -56,7 +56,7 @@ function convertCommand(command: string, packageManager: string): string {
     }
   }
 
-  // For other commands, just replace the package manager
+
   switch (packageManager) {
     case 'npm':
       return `npm ${cleanCommand}`;
@@ -79,7 +79,7 @@ export function PackageManagerTabs({ installCommand, uninstallCommand }: Package
 
   return (
     <div className="mb-4">
-      {/* Tab Headers */}
+
       <div className="flex gap-2 rounded-t-lg mb-1">
         {packageManagers.map((pm) => (
           <button
@@ -96,7 +96,7 @@ export function PackageManagerTabs({ installCommand, uninstallCommand }: Package
         ))}
       </div>
 
-      {/* Tab Content */}
+
       <div className="relative">
         <CodeBlock className="language-bash">
           {convertedCommands}

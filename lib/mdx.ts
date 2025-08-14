@@ -41,7 +41,7 @@ export function getAllPosts(): Post[] {
       };
     })
     .sort((a, b) => {
-      // Sort by date if available, otherwise by slug
+
       if (a.metadata.date && b.metadata.date) {
         return new Date(b.metadata.date).getTime() - new Date(a.metadata.date).getTime();
       }
