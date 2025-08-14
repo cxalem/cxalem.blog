@@ -40,6 +40,11 @@ export async function generateMetadata({
   if (description) ogImageUrl.searchParams.set("description", description);
   if (tags && tags.length > 0)
     ogImageUrl.searchParams.set("tags", tags.join(","));
+  
+  // Add cache busting for development
+  if (process.env.NODE_ENV === 'development') {
+    ogImageUrl.searchParams.set("v", Date.now().toString());
+  }
 
   return {
     title: title ? `${title} | cxalem.blog` : `${slug} | cxalem.blog`,
@@ -68,8 +73,14 @@ export async function generateMetadata({
       card: "summary_large_image",
       title: title || slug,
       description: description || `Read about ${title || slug} on cxalem.blog`,
-      images: [ogImageUrl.toString()],
+      images: [{
+        url: ogImageUrl.toString(),
+        width: 1200,
+        height: 630,
+        alt: title || slug,
+      }],
       creator: "@cxalem",
+      site: "@cxalem",
     },
     robots: {
       index: true,

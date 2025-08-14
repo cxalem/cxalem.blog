@@ -21,10 +21,10 @@ export async function GET(request: NextRequest) {
             flexDirection: 'column',
             alignItems: 'flex-start',
             justifyContent: 'center',
-            backgroundColor: '#1e293b',
-            backgroundImage: 'linear-gradient(45deg, #1e293b 0%, #334155 100%)',
+            backgroundColor: '#2f2f2f',
+            backgroundImage: 'linear-gradient(135deg, #2f2f2f 0%, #1a1a1a 100%)',
             padding: '80px',
-            color: 'white',
+            color: '#fafafa',
             fontFamily: 'system-ui, -apple-system, sans-serif',
           }}
         >
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
               style={{
                 width: '8px',
                 height: '60px',
-                backgroundColor: '#3b82f6',
+                backgroundColor: '#ea580c',
                 marginRight: '20px',
                 borderRadius: '4px',
               }}
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
               style={{
                 fontSize: '32px',
                 fontWeight: '600',
-                color: '#94a3b8',
+                color: '#d1d5db',
               }}
             >
               cxalem.blog
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
               lineHeight: '1.1',
               marginBottom: '30px',
               maxWidth: '90%',
-              background: 'linear-gradient(90deg, #ffffff 0%, #e2e8f0 100%)',
+              background: 'linear-gradient(90deg, #ffffff 0%, #fed7aa 100%)',
               backgroundClip: 'text',
               WebkitBackgroundClip: 'text',
               color: 'transparent',
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
             <p
               style={{
                 fontSize: '28px',
-                color: '#cbd5e1',
+                color: '#d1d5db',
                 lineHeight: '1.4',
                 marginBottom: '40px',
                 maxWidth: '85%',
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
                 <span
                   key={index}
                   style={{
-                    backgroundColor: '#3b82f6',
+                    backgroundColor: '#ea580c',
                     color: 'white',
                     padding: '12px 24px',
                     borderRadius: '25px',
