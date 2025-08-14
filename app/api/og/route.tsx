@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const description = searchParams.get('description') || '';
     const tags = searchParams.get('tags')?.split(',') || [];
     
-    return new ImageResponse(
+    const imageResponse = new ImageResponse(
       (
         <div
           style={{
@@ -121,8 +121,18 @@ export async function GET(request: NextRequest) {
       {
         width: 1200,
         height: 630,
+        headers: {
+          'Cache-Control': 'public, max-age=31536000, immutable',
+          'Content-Type': 'image/png',
+        },
       }
     );
+
+    // Add Twitter-specific headers
+    imageResponse.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    imageResponse.headers.set('Content-Type', 'image/png');
+    
+    return imageResponse;
   } catch (e) {
     console.log(`${e instanceof Error ? e.message : 'Unknown error'}`);
     return new Response(`Failed to generate the image`, {
