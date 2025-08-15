@@ -62,7 +62,7 @@ export default function AboutPage() {
 
         <section className="mb-10">
           <h2
-            className="text-sm font-semibold text-neutral-900 dark:text-white uppercase tracking-wide mb-4"
+            className="font-semibold text-neutral-900 dark:text-white uppercase tracking-wide mb-4"
             style={{ fontFamily: "var(--font-caryotype)" }}
           >
             Experience
