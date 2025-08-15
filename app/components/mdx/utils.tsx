@@ -1,7 +1,5 @@
-let headingCounter = 0;
-
 export function resetHeadingCounter(): void {
-  headingCounter = 0;
+  // No-op function maintained for compatibility
 }
 
 export function generateHeadingId(text: string): string {

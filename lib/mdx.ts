@@ -64,7 +64,7 @@ export function getPostBySlug(slug: string): Post | null {
       } as PostMetadata,
       content,
     };
-  } catch (error) {
+  } catch {
     return null;
   }
 }
