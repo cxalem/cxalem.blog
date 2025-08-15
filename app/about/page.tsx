@@ -35,8 +35,8 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       title,
       description,
-      creator: "@cxalem",
-      site: "@cxalem",
+      creator: "@_cxalem",
+      site: "@_cxalem",
       images: [
         {
           url: ogImageUrl,
@@ -48,8 +48,8 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     other: {
       "twitter:card": "summary_large_image",
-      "twitter:site": "@cxalem",
-      "twitter:creator": "@cxalem",
+      "twitter:site": "@_cxalem",
+      "twitter:creator": "@_cxalem",
       "twitter:title": title,
       "twitter:description": description,
       "twitter:image": ogImageUrl,

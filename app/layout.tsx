@@ -57,8 +57,8 @@ export const metadata: Metadata = {
     title: "cxalem.blog - Full Stack Developer",
     description:
       "Hey, I'm Alejandro! Full Stack Developer working on personal projects and developer tooling. Currently building Lucas Wallet, an embedded wallet for Venezuela. Based in Madrid, Spain.",
-    creator: "@cxalem",
-    site: "@cxalem",
+    creator: "@_cxalem",
+    site: "@_cxalem",
     images: [
       {
         url: `${baseUrl}/api/og?title=${encodeURIComponent("cxalem.blog - Full Stack Developer")}&description=${encodeURIComponent("Hey, I'm Alejandro! Full Stack Developer working on personal projects and developer tooling.")}&v=${Date.now()}`,
@@ -70,8 +70,8 @@ export const metadata: Metadata = {
   },
   other: {
     "twitter:card": "summary_large_image",
-    "twitter:site": "@cxalem",
-    "twitter:creator": "@cxalem",
+    "twitter:site": "@_cxalem",
+    "twitter:creator": "@_cxalem",
     "twitter:title": "cxalem.blog - Full Stack Developer",
     "twitter:description": "Hey, I'm Alejandro! Full Stack Developer working on personal projects and developer tooling. Currently building Lucas Wallet, an embedded wallet for Venezuela. Based in Madrid, Spain.",
     "twitter:image": `${baseUrl}/api/og?title=${encodeURIComponent("cxalem.blog - Full Stack Developer")}&description=${encodeURIComponent("Hey, I'm Alejandro! Full Stack Developer working on personal projects and developer tooling.")}&v=${Date.now()}`,

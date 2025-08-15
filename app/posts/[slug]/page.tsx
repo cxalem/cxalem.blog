@@ -77,14 +77,13 @@ export async function generateMetadata({
         height: 630,
         alt: title || slug,
       }],
-      creator: "@cxalem",
-      site: "@cxalem",
+      creator: "@_cxalem",
+      site: "@_cxalem",
     },
-    // Additional meta tags for Twitter compatibility
     other: {
       "twitter:card": "summary_large_image",
-      "twitter:site": "@cxalem",
-      "twitter:creator": "@cxalem",
+      "twitter:site": "@_cxalem",
+      "twitter:creator": "@_cxalem",
       "twitter:title": title || slug,
       "twitter:description": description || `Read about ${title || slug} on cxalem.blog`,
       "twitter:image": ogImageUrl.toString(),
