@@ -1,14 +1,17 @@
 import { Metadata } from "next";
 import Link from "next/link";
 
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://cxalem.blog';
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://cxalem.blog";
 
 export async function generateMetadata(): Promise<Metadata> {
   const title = "About Alejandro Mena - Full Stack Developer & DevRel Engineer";
-  const description = "Builder and educator focused on helping developers ship faster with great tooling, clear docs, and production‑grade examples. Currently open to new opportunities.";
-  
-  const ogImageUrl = `${baseUrl}/api/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}&v=${Date.now()}`;
-  
+  const description =
+    "Builder and educator focused on helping developers ship faster with great tooling, clear docs, and production‑grade examples. Currently open to new opportunities.";
+
+  const ogImageUrl = `${baseUrl}/api/og?title=${encodeURIComponent(
+    title
+  )}&description=${encodeURIComponent(description)}&v=${Date.now()}`;
+
   return {
     title: "About",
     description,
@@ -53,6 +56,17 @@ export async function generateMetadata(): Promise<Metadata> {
       "twitter:image:width": "1200",
       "twitter:image:height": "630",
       "twitter:image:alt": title,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
     },
   };
 }
