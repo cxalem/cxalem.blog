@@ -14,6 +14,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://cxalem.blog';
+
 export const metadata: Metadata = {
   title: {
     default: "cxalem.blog - Full Stack Developer",
@@ -41,6 +43,14 @@ export const metadata: Metadata = {
     title: "cxalem.blog - Full Stack Developer",
     description:
       "Hey, I'm Alejandro! Full Stack Developer working on personal projects and developer tooling. Currently building Lucas Wallet, an embedded wallet for Venezuela. Based in Madrid, Spain.",
+    images: [
+      {
+        url: `${baseUrl}/api/og?title=${encodeURIComponent("cxalem.blog - Full Stack Developer")}&description=${encodeURIComponent("Hey, I'm Alejandro! Full Stack Developer working on personal projects and developer tooling.")}&v=${Date.now()}`,
+        width: 1200,
+        height: 630,
+        alt: "cxalem.blog - Full Stack Developer",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
@@ -48,6 +58,15 @@ export const metadata: Metadata = {
     description:
       "Hey, I'm Alejandro! Full Stack Developer working on personal projects and developer tooling. Currently building Lucas Wallet, an embedded wallet for Venezuela. Based in Madrid, Spain.",
     creator: "@cxalem",
+    site: "@cxalem",
+    images: [
+      {
+        url: `${baseUrl}/api/og?title=${encodeURIComponent("cxalem.blog - Full Stack Developer")}&description=${encodeURIComponent("Hey, I'm Alejandro! Full Stack Developer working on personal projects and developer tooling.")}&v=${Date.now()}`,
+        width: 1200,
+        height: 630,
+        alt: "cxalem.blog - Full Stack Developer",
+      },
+    ],
   },
   robots: {
     index: true,

@@ -1,22 +1,56 @@
 import { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = {
-  title: "About",
-  description:
-    "Learn more about Alejandro - Full Stack Developer, Web3 enthusiast, and creator of developer tools.",
-  openGraph: {
-    title: "About | cxalem.blog",
-    description:
-      "Learn more about Alejandro - Full Stack Developer, Web3 enthusiast, and creator of developer tools.",
-    url: "https://cxalem.blog/about",
-  },
-  twitter: {
-    title: "About | cxalem.blog",
-    description:
-      "Learn more about Alejandro - Full Stack Developer, Web3 enthusiast, and creator of developer tools.",
-  },
-};
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://cxalem.blog';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const title = "About Alejandro Mena - Full Stack Developer & DevRel Engineer";
+  const description = "Builder and educator focused on helping developers ship faster with great tooling, clear docs, and production‑grade examples. Currently open to new opportunities.";
+  
+  const ogImageUrl = `${baseUrl}/api/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}&v=${Date.now()}`;
+  
+  return {
+    title: "About",
+    description,
+    openGraph: {
+      title,
+      description,
+      url: `${baseUrl}/about`,
+      siteName: "cxalem.blog",
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
+      locale: "en_US",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      creator: "@cxalem",
+      site: "@cxalem",
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
+    },
+    other: {
+      "twitter:image": ogImageUrl,
+      "twitter:image:width": "1200",
+      "twitter:image:height": "630",
+      "twitter:image:alt": title,
+    },
+  };
+}
 
 export default function AboutPage() {
   return (

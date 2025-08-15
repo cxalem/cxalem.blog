@@ -1,4 +1,56 @@
 import Image from "next/image";
+import { Metadata } from "next";
+
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://cxalem.blog';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const title = "Alejandro Mena - Full Stack Developer & DevRel Engineer";
+  const description = "I'm a Software Engineer who has been working as a Developer Relations Engineer. Based in Spain, from Venezuela. Discover my thoughts and learning processes!";
+  
+  const ogImageUrl = `${baseUrl}/api/og?title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}&v=${Date.now()}`;
+  
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: baseUrl,
+      siteName: "cxalem.blog",
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
+      locale: "en_US",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      creator: "@cxalem",
+      site: "@cxalem",
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
+    },
+    other: {
+      "twitter:image": ogImageUrl,
+      "twitter:image:width": "1200",
+      "twitter:image:height": "630",
+      "twitter:image:alt": title,
+    },
+  };
+}
 
 export default function Home() {
   return (
