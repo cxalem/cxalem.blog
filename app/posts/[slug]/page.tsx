@@ -82,10 +82,15 @@ export async function generateMetadata({
     },
     // Additional meta tags for Twitter compatibility
     other: {
-      'twitter:image': ogImageUrl.toString(),
-      'twitter:image:width': '1200',
-      'twitter:image:height': '630',
-      'twitter:image:alt': title || slug,
+      "twitter:card": "summary_large_image",
+      "twitter:site": "@cxalem",
+      "twitter:creator": "@cxalem",
+      "twitter:title": title || slug,
+      "twitter:description": description || `Read about ${title || slug} on cxalem.blog`,
+      "twitter:image": ogImageUrl.toString(),
+      "twitter:image:width": "1200",
+      "twitter:image:height": "630",
+      "twitter:image:alt": title || slug,
     },
     robots: {
       index: true,

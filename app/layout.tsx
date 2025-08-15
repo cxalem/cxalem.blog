@@ -68,6 +68,17 @@ export const metadata: Metadata = {
       },
     ],
   },
+  other: {
+    "twitter:card": "summary_large_image",
+    "twitter:site": "@cxalem",
+    "twitter:creator": "@cxalem",
+    "twitter:title": "cxalem.blog - Full Stack Developer",
+    "twitter:description": "Hey, I'm Alejandro! Full Stack Developer working on personal projects and developer tooling. Currently building Lucas Wallet, an embedded wallet for Venezuela. Based in Madrid, Spain.",
+    "twitter:image": `${baseUrl}/api/og?title=${encodeURIComponent("cxalem.blog - Full Stack Developer")}&description=${encodeURIComponent("Hey, I'm Alejandro! Full Stack Developer working on personal projects and developer tooling.")}&v=${Date.now()}`,
+    "twitter:image:width": "1200",
+    "twitter:image:height": "630",
+    "twitter:image:alt": "cxalem.blog - Full Stack Developer",
+  },
   robots: {
     index: true,
     follow: true,
