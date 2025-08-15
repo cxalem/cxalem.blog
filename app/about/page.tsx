@@ -40,7 +40,7 @@ export default function AboutPage() {
         <section className="mb-10">
           <div className="bg-neutral-50/90 dark:bg-neutral-800/90 backdrop-blur-sm border border-neutral-200/60 dark:border-neutral-700/60 rounded-xl shadow-sm p-6">
             <h2
-              className="text-sm font-semibold text-neutral-900 dark:text-white uppercase tracking-wide mb-3"
+              className="font-semibold text-neutral-900 dark:text-white uppercase tracking-wide mb-3"
               style={{ fontFamily: "var(--font-caryotype)" }}
             >
               Current Role
